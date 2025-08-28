@@ -194,6 +194,8 @@ public class BattleZone implements ApplicationListener, InputProcessor {
     private Model projectileModel;
     private Projectile projectile;
 
+    private EngineSound engine;
+
     @Override
     public void create() {
 
@@ -239,6 +241,10 @@ public class BattleZone implements ApplicationListener, InputProcessor {
             volcanoParticles[i] = new VolcanoParticle();
         }
 
+        engine = new EngineSound();
+        engine.setIdleClockHz(240f);
+        engine.setMaxClockHz(1200f);
+        engine.start();
     }
 
     @Override
@@ -247,6 +253,7 @@ public class BattleZone implements ApplicationListener, InputProcessor {
         float dt = Gdx.graphics.getDeltaTime();
 
         cam.update();
+        //engine.update(Gdx.graphics.getDeltaTime());
 
         // --- yaw/pan with A/D ---
         float yaw = 0f;
@@ -293,7 +300,7 @@ public class BattleZone implements ApplicationListener, InputProcessor {
         for (ModelInstance inst : modelInstances) {
             modelBatch.render(inst, environment);
         }
-        
+
         if (enemy.radar() != null) {
             modelBatch.render(enemy.radar(), environment);
         }
@@ -534,12 +541,14 @@ public class BattleZone implements ApplicationListener, InputProcessor {
         switch (keycode) {
             case Input.Keys.W:
                 wDown = true;
+                engine.setThrottle(1f);
                 return true;
             case Input.Keys.A:
                 aDown = true;
                 return true;
             case Input.Keys.S:
                 sDown = true;
+                engine.setThrottle(1f);
                 return true;
             case Input.Keys.D:
                 dDown = true;
@@ -572,12 +581,14 @@ public class BattleZone implements ApplicationListener, InputProcessor {
         switch (keycode) {
             case Input.Keys.W:
                 wDown = false;
+                engine.setThrottle(0f);
                 return true;
             case Input.Keys.A:
                 aDown = false;
                 return true;
             case Input.Keys.S:
                 sDown = false;
+                engine.setThrottle(0f);
                 return true;
             case Input.Keys.D:
                 dDown = false;
