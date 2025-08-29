@@ -1,0 +1,94 @@
+package bzone;
+
+import static bzone.BattleZone.SCREEN_HEIGHT;
+import static bzone.BattleZone.SCREEN_WIDTH;
+import static bzone.BattleZone.WORLD_WRAP_HALF_16BIT;
+import static bzone.BattleZone.to16;
+import static bzone.BattleZone.wrapDelta16;
+
+import com.badlogic.gdx.graphics.PerspectiveCamera;
+import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.badlogic.gdx.math.MathUtils;
+
+public class Radar {
+
+    private static final float SWEEP_REV_PER_SEC = 1f / 3f;
+    private static final float STEPS_PER_SEC = 256f * SWEEP_REV_PER_SEC;
+
+    private static final float RADAR_RANGE_UNITS = WORLD_WRAP_HALF_16BIT * 1.41421356f; //SQRT2
+    private static final int RADAR_WINDOW = 0x20;
+    private static final float RADAR_CX = SCREEN_WIDTH / 2f;
+    private static final float RADAR_CY = SCREEN_HEIGHT - 110f;
+    private static final float RADAR_RADIUS = 100;
+
+    private float sweep256 = 0f;
+    private int radarPulse = 0;
+
+    public void drawRadar2D(PerspectiveCamera cam, ShapeRenderer sr, EnemyAI.Enemy enemy, float dt) {
+        if (dt > 0.1f) {
+            dt = 0.1f;
+        }
+
+        // time-based sweep 0..256
+        sweep256 = (sweep256 + STEPS_PER_SEC * dt) % 256f;
+        int sweep8 = ((int) sweep256) & 0xFF;
+
+        // --- bearings in 16-bit wrap space ---
+        int dx16 = wrapDelta16(to16(enemy.pos.x) - to16(cam.position.x));
+        int dz16 = wrapDelta16(to16(enemy.pos.z) - to16(cam.position.z));
+        int enemyBearing8 = angle256(dx16, dz16);
+
+        // player's heading from camera forward (same convention: 0 = +Z)
+        int playerHeading8 = angle256(
+                (int) Math.round(cam.direction.x * 32767f),
+                (int) Math.round(cam.direction.z * 32767f)
+        );
+
+        // Convert everything into the player's frame (forward = "up" on radar)
+        int sweepRel8 = (sweep8 - playerHeading8) & 0xFF;
+        int rel8 = (enemyBearing8 - playerHeading8) & 0xFF;
+
+        // gate pulse on angular proximity
+        int adiff = angularDistance8(sweepRel8, rel8);
+        if (adiff <= RADAR_WINDOW) {
+            radarPulse = 0xF0;
+        } else {
+            radarPulse = Math.max(0, radarPulse - Math.round(220f * dt));
+        }
+
+        // draw sweep line
+        float a = (sweepRel8 / 256f) * MathUtils.PI2;
+        float cs = MathUtils.cos(a), sn = MathUtils.sin(a);
+
+        sr.begin(ShapeRenderer.ShapeType.Line);
+        sr.setColor(0f, 1f, 0f, 0.25f);
+
+        float ex = RADAR_CX - sn * RADAR_RADIUS;
+        float ey = RADAR_CY + cs * RADAR_RADIUS;
+        sr.line(RADAR_CX, RADAR_CY, ex, ey);
+
+        float dist = (float) Math.sqrt((float) dx16 * dx16 + (float) dz16 * dz16);
+        float t = MathUtils.clamp(dist / RADAR_RANGE_UNITS, 0f, 1f);
+        float mid = t * RADAR_RADIUS;
+
+        //draw blip of tank
+        float th = (rel8 / 256f) * MathUtils.PI2;
+        float cb = MathUtils.cos(th), sb = MathUtils.sin(th);
+        float px = RADAR_CX - sb * mid;
+        float py = RADAR_CY + cb * mid;
+        sr.setColor(1f, 0f, 0f, 0.65f);
+        sr.circle(px, py, 2);
+
+        sr.end();
+    }
+
+    private static int angle256(int dx, int dz) {
+        float ang = MathUtils.atan2((float) dx, (float) dz); // 0 = +Z
+        return Math.round((ang / MathUtils.PI2) * 256f) & 0xFF;
+    }
+
+    private static int angularDistance8(int a, int b) {
+        int d = (a - b) & 0xFF;
+        return (d > 127) ? (256 - d) : d;
+    }
+}
