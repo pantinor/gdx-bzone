@@ -20,7 +20,6 @@ import com.badlogic.gdx.math.Vector3;
 import java.util.ArrayList;
 import java.util.List;
 import com.badlogic.gdx.math.Matrix4;
-import com.badlogic.gdx.math.collision.BoundingBox;
 
 public class BattleZone implements ApplicationListener, InputProcessor {
 
@@ -382,17 +381,13 @@ public class BattleZone implements ApplicationListener, InputProcessor {
         }
     }
 
-    private final BoundingBox tmpBox = new BoundingBox();
-
     private static float obstacleRadiusFromBounds(GameModelInstance inst) {
-        // quick 2D radius from local bounds (already in world units because your model vertices are in ROM-ish units)
         float rx = inst.localBounds.getWidth() * 0.5f;
         float rz = inst.localBounds.getDepth() * 0.5f;
         return Math.max(rx, rz);
     }
 
     private boolean collidesAnyModelXZ(float x, float z) {
-        // Only obstacles are static world collisions. Skip tank/radar/projectile.
         for (GameModelInstance inst : obstacles) {
             Vector3 wrapped = nearestWrappedPos(inst, x, z, TMP1);
             float dx = wrapped.x - x;

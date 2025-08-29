@@ -29,22 +29,20 @@ public class Radar {
             dt = 0.1f;
         }
 
-        // time-based sweep 0..256
+        sr.begin(ShapeRenderer.ShapeType.Filled);
+        sr.setColor(0.05f, 0.05f, 0.05f, 0.35f);
+        sr.circle(RADAR_CX, RADAR_CY, RADAR_RADIUS);
+        sr.end();
+
         sweep256 = (sweep256 + STEPS_PER_SEC * dt) % 256f;
         int sweep8 = ((int) sweep256) & 0xFF;
 
-        // --- bearings in 16-bit wrap space ---
         int dx16 = wrapDelta16(to16(enemy.pos.x) - to16(cam.position.x));
         int dz16 = wrapDelta16(to16(enemy.pos.z) - to16(cam.position.z));
         int enemyBearing8 = angle256(dx16, dz16);
 
-        // player's heading from camera forward (same convention: 0 = +Z)
-        int playerHeading8 = angle256(
-                (int) Math.round(cam.direction.x * 32767f),
-                (int) Math.round(cam.direction.z * 32767f)
-        );
+        int playerHeading8 = angle256((int) Math.round(cam.direction.x * 32767f), (int) Math.round(cam.direction.z * 32767f));
 
-        // Convert everything into the player's frame (forward = "up" on radar)
         int sweepRel8 = (sweep8 - playerHeading8) & 0xFF;
         int rel8 = (enemyBearing8 - playerHeading8) & 0xFF;
 
