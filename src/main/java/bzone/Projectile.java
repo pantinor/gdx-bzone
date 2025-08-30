@@ -4,7 +4,6 @@ import static bzone.BattleZone.nearestWrappedPos;
 import static bzone.BattleZone.wrap16f;
 import static bzone.BattleZone.wrapDelta16;
 import static bzone.BattleZone.to16;
-import com.badlogic.gdx.graphics.g3d.Model;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Matrix4;
 import com.badlogic.gdx.math.Vector3;
@@ -25,20 +24,19 @@ public class Projectile {
 
     private static final float WORLD_Y = 0.5f;
 
-    private final Model model;
-    private GameModelInstance inst;
+    public final GameModelInstance inst;
     public boolean active;
     private int ttl;
 
     private final Vector3 pos = new Vector3();
     private final Vector3 vel = new Vector3();
 
-    public Projectile(Model model) {
-        this.model = model;
+    public Projectile(GameModelInstance inst) {
+        this.inst = inst;
     }
 
-    public void update(GameContext enemyCtx, List<GameModelInstance> modelInstances, List<GameModelInstance> obstacles) {
-        
+    public void update(GameContext ctx, List<GameModelInstance> obstacles) {
+
         if (!active) {
             return;
         }
@@ -55,11 +53,11 @@ public class Projectile {
             float sx = MathUtils.lerp(px, nextX, t);
             float sz = MathUtils.lerp(pz, nextZ, t);
 
-            if (hitsPlayer(enemyCtx, sx, sz) || projectileHitsWorldXZ(obstacles, sx, sz)) {
+            if (hitsPlayer(ctx, sx, sz) || projectileHitsWorldXZ(obstacles, sx, sz)) {
                 pos.set(sx, WORLD_Y, sz);
-                setWrappedToViewer(inst, pos.x, pos.z, enemyCtx.playerX, enemyCtx.playerZ);
+                setWrappedToViewer(inst, pos.x, pos.z, ctx.playerX, ctx.playerZ);
                 onProjectileHit();
-                deactivate(modelInstances);
+                active = false;
                 return;
             }
         }
@@ -67,15 +65,15 @@ public class Projectile {
         pos.set(nextX, WORLD_Y, nextZ);
         pos.x = wrap16f(pos.x);
         pos.z = wrap16f(pos.z);
-        setWrappedToViewer(inst, pos.x, pos.z, enemyCtx.playerX, enemyCtx.playerZ);
+        setWrappedToViewer(inst, pos.x, pos.z, ctx.playerX, ctx.playerZ);
 
         if (--ttl <= 0) {
-            deactivate(modelInstances);
+            active = false;
         }
     }
 
-    public void spawnFromEnemy(EnemyAI.Enemy enmy, GameContext ctx, List<GameModelInstance> modelInstances, List<GameModelInstance> obstacles) {
-       
+    public void spawnFromEnemy(EnemyAI.Enemy enmy, GameContext ctx, List<GameModelInstance> obstacles) {
+
         if (active) {
             return;
         }
@@ -98,23 +96,10 @@ public class Projectile {
 
         ttl = PROJECTILE_TTL_FRAMES;
 
-        inst = new GameModelInstance(model, pos.x, pos.y, pos.z);
-        
         inst.transform.idt().setToRotation(Vector3.Y, yawDeg + PROJECTILE_YAW_OFFSET_DEG);
         setWrappedToViewer(inst, pos.x, pos.z, ctx.playerX, ctx.playerZ);
 
-        inst.calculateTransforms();
-
-        if (!modelInstances.contains(inst)) {
-            modelInstances.add(inst);
-        }
-
         active = true;
-
-        if (hitsPlayer(ctx, pos.x, pos.z) || projectileHitsWorldXZ(obstacles, pos.x, pos.z)) {
-            onProjectileHit();
-            deactivate(modelInstances);
-        }
     }
 
     private boolean hitsPlayer(GameContext ctx, float x, float z) {
@@ -158,20 +143,14 @@ public class Projectile {
         // TODO: damage/explosion sound/FX
     }
 
-    private void deactivate(List<GameModelInstance> modelInstances) {
-        active = false;
-        if (inst != null) {
-            modelInstances.remove(inst);
-        }
-    }
-
     private static int d16(float a, float b) {
         return wrapDelta16(to16(a) - to16(b));
     }
 
-    private static void setWrappedToViewer(GameModelInstance gi, float x, float z, float viewerX, float viewerZ) {
+    private static void setWrappedToViewer(GameModelInstance inst, float x, float z, float viewerX, float viewerZ) {
         int dx = d16(x, viewerX);
         int dz = d16(z, viewerZ);
-        gi.transform.setTranslation(viewerX + dx, WORLD_Y, viewerZ + dz);
+        inst.transform.setTranslation(viewerX + dx, WORLD_Y, viewerZ + dz);
+        inst.calculateTransforms();
     }
 }

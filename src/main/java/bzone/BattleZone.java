@@ -14,7 +14,6 @@ import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator;
 import com.badlogic.gdx.graphics.g3d.Environment;
-import com.badlogic.gdx.graphics.g3d.Model;
 import com.badlogic.gdx.graphics.g3d.ModelBatch;
 import com.badlogic.gdx.graphics.g3d.ModelInstance;
 import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute;
@@ -126,9 +125,9 @@ public class BattleZone implements ApplicationListener, InputProcessor {
         context.collisionChecker = this::collidesAnyModelXZ;
         enemy.setRadar(radar);
 
-        Model projectileModel = Models.buildWireframeModel(Models.Mesh.PROJECTILE.wf(), Color.YELLOW, 1, -1f);
-        projectile = new Projectile(projectileModel);
-        context.shooter = () -> projectile.spawnFromEnemy(enemy, context, modelInstances, obstacles);
+        GameModelInstance projectileInstance = Models.buildWireframeInstance(Models.Mesh.PROJECTILE.wf(), Color.YELLOW, 1, -1f, 0f, 0.5f, 0f);
+        projectile = new Projectile(projectileInstance);
+        context.shooter = () -> projectile.spawnFromEnemy(enemy, context, obstacles);
 
         loadMapObstacles();
 
@@ -174,13 +173,10 @@ public class BattleZone implements ApplicationListener, InputProcessor {
         context.playerX = cam.position.x;
         context.playerZ = cam.position.z;
         context.nmiCount = ++this.nmiCount;
-        context.projectileBusy = (projectile != null && projectile.active);
-
+        
+        projectile.update(context, obstacles);
         EnemyAI.update(enemy, context, dt);
-
-        if (projectile != null) {
-            projectile.update(context, modelInstances, obstacles);
-        }
+        context.projectileBusy = projectile.active;
 
         Gdx.gl.glViewport(0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         Gdx.gl.glClear(GL30.GL_COLOR_BUFFER_BIT | GL30.GL_DEPTH_BUFFER_BIT);
@@ -188,6 +184,10 @@ public class BattleZone implements ApplicationListener, InputProcessor {
         modelBatch.begin(cam);
 
         drawObstacles(modelBatch);
+
+        if (context.projectileBusy) {
+            modelBatch.render(projectile.inst, environment);
+        }
 
         for (ModelInstance inst : modelInstances) {
             modelBatch.render(inst, environment);
