@@ -10,6 +10,9 @@ import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL30;
 import com.badlogic.gdx.graphics.PerspectiveCamera;
 import com.badlogic.gdx.graphics.OrthographicCamera;
+import com.badlogic.gdx.graphics.g2d.BitmapFont;
+import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator;
 import com.badlogic.gdx.graphics.g3d.Environment;
 import com.badlogic.gdx.graphics.g3d.Model;
 import com.badlogic.gdx.graphics.g3d.ModelBatch;
@@ -20,6 +23,7 @@ import com.badlogic.gdx.math.Vector3;
 import java.util.ArrayList;
 import java.util.List;
 import com.badlogic.gdx.math.Matrix4;
+import java.util.concurrent.ThreadLocalRandom;
 
 public class BattleZone implements ApplicationListener, InputProcessor {
 
@@ -57,6 +61,7 @@ public class BattleZone implements ApplicationListener, InputProcessor {
     private final float moveSpeed = 3200f;
     private float headingDeg = 0f;
 
+    private SpriteBatch batch;
     private ModelBatch modelBatch;
     private PerspectiveCamera cam;
     private OrthographicCamera backGroundCam;
@@ -74,8 +79,20 @@ public class BattleZone implements ApplicationListener, InputProcessor {
     private final Radar radarScreen = new Radar();
     private EngineSound engine;
 
+    BitmapFont font;
+
     @Override
     public void create() {
+
+        FreeTypeFontGenerator generator = new FreeTypeFontGenerator(Gdx.files.classpath("assets/data/bzone-font.ttf"));
+        FreeTypeFontGenerator.FreeTypeFontParameter parameter = new FreeTypeFontGenerator.FreeTypeFontParameter();
+
+        parameter.size = 18;
+        parameter.color = Color.RED;
+        parameter.hinting = FreeTypeFontGenerator.Hinting.Full;
+        font = generator.generateFont(parameter);
+
+        batch = new SpriteBatch();
 
         backGroundCam = new OrthographicCamera();
         backGroundCam.setToOrtho(false, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
@@ -95,16 +112,16 @@ public class BattleZone implements ApplicationListener, InputProcessor {
 
         modelBatch = new ModelBatch();
 
-        cam.position.set(0, 0.5f, 0);
-        cam.lookAt(0, 0.5f, 15);
+        cam.position.set(spawnX(), 0.5f, spawnZ());
+        headingDeg = rand8();//0 is facing the moon
 
         GameModelInstance tank = Models.buildWireframeInstance(Models.Mesh.SLOW_TANK.wf(), Color.RED, 1, -1f, 3f, 0.5f, 3f);
         modelInstances.add(tank);
         GameModelInstance radar = Models.buildWireframeInstance(Models.Mesh.RADAR1.wf(), Color.RED, 1, -1f, 3f, 0.5f, 3f);
 
         enemy = new EnemyAI.Enemy(tank);
-        enemy.pos.x = 20_000;
-        enemy.pos.z = 20_000;
+        enemy.pos.x = 12000;
+        enemy.pos.z = 12000;
         enemy.facing = 0;
         context.collisionChecker = this::collidesAnyModelXZ;
         enemy.setRadar(radar);
@@ -182,7 +199,6 @@ public class BattleZone implements ApplicationListener, InputProcessor {
 
         modelBatch.end();
 
-        //background
         backGroundCam.setToOrtho(false, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         backGroundCam.update();
 
@@ -193,6 +209,10 @@ public class BattleZone implements ApplicationListener, InputProcessor {
         background.drawBackground2D(sr, hd);
 
         drawHUD(dt);
+
+        batch.begin();
+        font.draw(batch, "pos = " + cam.position.x + " " + cam.position.z, 100, SCREEN_HEIGHT - 100);
+        batch.end();
     }
 
     @Override
@@ -332,7 +352,7 @@ public class BattleZone implements ApplicationListener, InputProcessor {
         sr.end();
         Gdx.gl.glLineWidth(1);
 
-        radarScreen.drawRadar2D(cam, sr, enemy, dt);
+        radarScreen.drawRadar2D(cam, sr, enemy, obstacles, dt);
     }
 
     private void loadMapObstacles() {
@@ -353,8 +373,8 @@ public class BattleZone implements ApplicationListener, InputProcessor {
             int zb = info[2] & 0xFF;
             int face = info[3] & 0xFF;
 
-            int x16 = (xb - 128) << 8;
-            int z16 = (zb - 128) << 8;
+            int x16 = (xb << 8) & 0xFFFF;
+            int z16 = (zb << 8) & 0xFFFF;
 
             float x = (float) x16;
             float z = (float) z16;
@@ -400,7 +420,7 @@ public class BattleZone implements ApplicationListener, InputProcessor {
         return false;
     }
 
-    private static float wrap16f(float v) {
+    public static float wrap16f(float v) {
         float r = v % WORLD_WRAP_16BIT;
         if (r < 0) {
             r += WORLD_WRAP_16BIT;
@@ -435,6 +455,18 @@ public class BattleZone implements ApplicationListener, InputProcessor {
         float wx = refX + dx16;
         float wz = refZ + dz16;
         return out.set(wx, inst.initialPos.y, wz);
+    }
+
+    public static int rand8() {
+        return ThreadLocalRandom.current().nextInt(256);
+    }
+
+    private static int spawnX() {
+        return ((rand8() & 0xFF) << 8) | (rand8() & 0xFF);
+    }
+
+    private static int spawnZ() {
+        return (((rand8() & 0x3F) << 8) | (rand8() & 0xFF));
     }
 
 }

@@ -9,22 +9,21 @@ import com.badlogic.gdx.math.Vector3;
 public final class EnemyAI {
 
     public static final int ANGLE_STEPS = 256;
-    public static final int TURN_STEP = 1;
-    public static final int RADAR_SPIN = 2;           // slow-tank radar spin per frame
-    public static final int CLOSE_FIRING_ANGLE = 0x10; // ~22.5°
-    public static final int REVERSE_TIME_FRAMES = 0x30;  // ~3 sec @60fps
-    public static final int FORWARD_TIME_FRAMES = 0x34;  // ~3.5 sec @60fps
-    public static final int NEW_HEADING_FRAMES = 0x40;   // ~4 sec @60fps
 
-    public static final float BASE_FORWARD_SPEED = 64f; // ~64 units/frame ≈ 3840 units/sec @60fps
-    public static final float SUPER_SPEED_MULT = 2.0f;    // super tanks move/turn faster
-    public static final float FWD_SPEED_SLOW = 3200f;     // ROM units per second
-    public static final float TURN_DEG_PER_SEC = 90f;     // degrees per second
+    private static final int RADAR_SPIN = 2;
+    private static final int CLOSE_FIRING_ANGLE = 16;
+    private static final int REVERSE_TIME_FRAMES = 48;
+    private static final int FORWARD_TIME_FRAMES = 256;
+    private static final int NEW_HEADING_FRAMES = 128;
 
-    public static final float FWD_START_DISTANCE_SLOW_TANK = 2048f;
-    public static final float FWD_START_DISTANCE_SUPER_TANK = 3072f;
+    private static final float SUPER_SPEED_MULT = 2.0f;
+    private static final float FWD_SPEED_SLOW = 2800f;
+    private static final float TURN_DEG_PER_SEC = 90f;
 
-    public enum TankType {
+    private static final float FWD_START_DISTANCE_SLOW_TANK = 1280;
+    private static final float FWD_START_DISTANCE_SUPER_TANK = 2048;
+
+    private enum TankType {
         SLOW, SUPER
     }
 
@@ -120,7 +119,7 @@ public final class EnemyAI {
 
             if (this.radar != null) {
                 radar.transform.set(instance.transform)
-                        .translate(0f, 0f, -0.40f)
+                        .translate(0, 0, -510f)
                         .rotate(Vector3.Y, radarFacing * 360f / ANGLE_STEPS);
             }
         }
@@ -230,7 +229,6 @@ public final class EnemyAI {
 
     private static void setTankTurnTo(Enemy enmy, Context ctx) {
 
-        // jitter helpers (0..3) to break 8-frame alignment
         final int JIT = (int) (ctx.nmiCount & 0x03L);          // for NEW_HEADING_FRAMES
         final int RJIT = (int) ((ctx.nmiCount >> 1) & 0x03L);   // for REVERSE_TIME_FRAMES
 

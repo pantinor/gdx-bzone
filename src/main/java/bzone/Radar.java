@@ -9,6 +9,7 @@ import static bzone.BattleZone.wrapDelta16;
 import com.badlogic.gdx.graphics.PerspectiveCamera;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.MathUtils;
+import java.util.List;
 
 public class Radar {
 
@@ -16,15 +17,14 @@ public class Radar {
     private static final float STEPS_PER_SEC = 256f * SWEEP_REV_PER_SEC;
 
     private static final float RADAR_RANGE_UNITS = WORLD_WRAP_HALF_16BIT * 1.41421356f; //SQRT2
-    private static final int RADAR_WINDOW = 0x20;
     private static final float RADAR_CX = SCREEN_WIDTH / 2f;
     private static final float RADAR_CY = SCREEN_HEIGHT - 110f;
     private static final float RADAR_RADIUS = 100;
 
     private float sweep256 = 0f;
-    private int radarPulse = 0;
 
-    public void drawRadar2D(PerspectiveCamera cam, ShapeRenderer sr, EnemyAI.Enemy enemy, float dt) {
+    public void drawRadar2D(PerspectiveCamera cam, ShapeRenderer sr, EnemyAI.Enemy enemy, List<GameModelInstance> obstacles, float dt) {
+
         if (dt > 0.1f) {
             dt = 0.1f;
         }
@@ -37,35 +37,47 @@ public class Radar {
         sweep256 = (sweep256 + STEPS_PER_SEC * dt) % 256f;
         int sweep8 = ((int) sweep256) & 0xFF;
 
-        int dx16 = wrapDelta16(to16(enemy.pos.x) - to16(cam.position.x));
-        int dz16 = wrapDelta16(to16(enemy.pos.z) - to16(cam.position.z));
-        int enemyBearing8 = angle256(dx16, dz16);
-
-        int playerHeading8 = angle256((int) Math.round(cam.direction.x * 32767f), (int) Math.round(cam.direction.z * 32767f));
-
+        int playerHeading8 = angle256(
+                (int) Math.round(cam.direction.x * 32767f),
+                (int) Math.round(cam.direction.z * 32767f));
         int sweepRel8 = (sweep8 - playerHeading8) & 0xFF;
-        int rel8 = (enemyBearing8 - playerHeading8) & 0xFF;
-
-        // gate pulse on angular proximity
-        int adiff = angularDistance8(sweepRel8, rel8);
-        if (adiff <= RADAR_WINDOW) {
-            radarPulse = 0xF0;
-        } else {
-            radarPulse = Math.max(0, radarPulse - Math.round(220f * dt));
-        }
-
-        // draw sweep line
-        float a = (sweepRel8 / 256f) * MathUtils.PI2;
-        float cs = MathUtils.cos(a), sn = MathUtils.sin(a);
 
         sr.begin(ShapeRenderer.ShapeType.Line);
         sr.setColor(0f, 1f, 0f, 0.25f);
 
+        // draw sweep line
+        float a = (sweepRel8 / 256f) * MathUtils.PI2;
+        float cs = MathUtils.cos(a), sn = MathUtils.sin(a);
         float ex = RADAR_CX - sn * RADAR_RADIUS;
         float ey = RADAR_CY + cs * RADAR_RADIUS;
         sr.line(RADAR_CX, RADAR_CY, ex, ey);
 
-        float dist = (float) Math.sqrt((float) dx16 * dx16 + (float) dz16 * dz16);
+        for (GameModelInstance inst : obstacles) {
+            int dx16 = wrapDelta16(to16(inst.initialPos.x) - to16(cam.position.x));
+            int dz16 = wrapDelta16(to16(inst.initialPos.z) - to16(cam.position.z));
+
+            int bearing8 = angle256(dx16, dz16);
+            int rel8 = (bearing8 - playerHeading8) & 0xFF;
+
+            float dist = (float) Math.sqrt((float) dx16 * dx16 + (float) dz16 * dz16);
+            float t = MathUtils.clamp(dist / RADAR_RANGE_UNITS, 0f, 1f);
+            float r = t * RADAR_RADIUS;
+
+            float ang = (rel8 / 256f) * MathUtils.PI2;
+            float cb = MathUtils.cos(ang), sb = MathUtils.sin(ang);
+            float px = RADAR_CX - sb * r;
+            float py = RADAR_CY + cb * r;
+
+            sr.setColor(0f, 0f, 1f, 0.65f);
+            sr.circle(px, py, 1);
+        }
+
+        int edx16 = wrapDelta16(to16(enemy.pos.x) - to16(cam.position.x));
+        int edz16 = wrapDelta16(to16(enemy.pos.z) - to16(cam.position.z));
+        int enemyBearing8 = angle256(edx16, edz16);
+        int rel8 = (enemyBearing8 - playerHeading8) & 0xFF;
+
+        float dist = (float) Math.sqrt((float) edx16 * edx16 + (float) edz16 * edz16);
         float t = MathUtils.clamp(dist / RADAR_RANGE_UNITS, 0f, 1f);
         float mid = t * RADAR_RADIUS;
 
@@ -85,8 +97,4 @@ public class Radar {
         return Math.round((ang / MathUtils.PI2) * 256f) & 0xFF;
     }
 
-    private static int angularDistance8(int a, int b) {
-        int d = (a - b) & 0xFF;
-        return (d > 127) ? (256 - d) : d;
-    }
 }
