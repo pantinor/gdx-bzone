@@ -4,8 +4,6 @@ import static bzone.BattleZone.nearestWrappedPos;
 import static bzone.BattleZone.wrap16f;
 import static bzone.BattleZone.wrapDelta16;
 import static bzone.BattleZone.to16;
-
-import bzone.EnemyAI.Context;
 import com.badlogic.gdx.graphics.g3d.Model;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Matrix4;
@@ -39,7 +37,7 @@ public class Projectile {
         this.model = model;
     }
 
-    public void update(Context enemyCtx, List<GameModelInstance> modelInstances, List<GameModelInstance> obstacles) {
+    public void update(GameContext enemyCtx, List<GameModelInstance> modelInstances, List<GameModelInstance> obstacles) {
         
         if (!active) {
             return;
@@ -76,7 +74,7 @@ public class Projectile {
         }
     }
 
-    public void spawnFromEnemy(EnemyAI.Enemy enmy, Context enemyCtx, List<GameModelInstance> modelInstances, List<GameModelInstance> obstacles) {
+    public void spawnFromEnemy(EnemyAI.Enemy enmy, GameContext ctx, List<GameModelInstance> modelInstances, List<GameModelInstance> obstacles) {
        
         if (active) {
             return;
@@ -103,7 +101,7 @@ public class Projectile {
         inst = new GameModelInstance(model, pos.x, pos.y, pos.z);
         
         inst.transform.idt().setToRotation(Vector3.Y, yawDeg + PROJECTILE_YAW_OFFSET_DEG);
-        setWrappedToViewer(inst, pos.x, pos.z, enemyCtx.playerX, enemyCtx.playerZ);
+        setWrappedToViewer(inst, pos.x, pos.z, ctx.playerX, ctx.playerZ);
 
         inst.calculateTransforms();
 
@@ -113,15 +111,15 @@ public class Projectile {
 
         active = true;
 
-        if (hitsPlayer(enemyCtx, pos.x, pos.z) || projectileHitsWorldXZ(obstacles, pos.x, pos.z)) {
+        if (hitsPlayer(ctx, pos.x, pos.z) || projectileHitsWorldXZ(obstacles, pos.x, pos.z)) {
             onProjectileHit();
             deactivate(modelInstances);
         }
     }
 
-    private boolean hitsPlayer(Context enemyCtx, float x, float z) {
-        int dx = d16(x, enemyCtx.playerX);
-        int dz = d16(z, enemyCtx.playerZ);
+    private boolean hitsPlayer(GameContext ctx, float x, float z) {
+        int dx = d16(x, ctx.playerX);
+        int dz = d16(z, ctx.playerZ);
         long dist2 = (long) dx * (long) dx + (long) dz * (long) dz;
         long r2 = (long) (PLAYER_HIT_RADIUS * PLAYER_HIT_RADIUS);
         return dist2 <= r2;

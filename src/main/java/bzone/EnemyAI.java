@@ -23,33 +23,8 @@ public final class EnemyAI {
     private static final float FWD_START_DISTANCE_SLOW_TANK = 1280;
     private static final float FWD_START_DISTANCE_SUPER_TANK = 2048;
 
-    private enum TankType {
+    public static enum TankType {
         SLOW, SUPER
-    }
-
-    public static final class Context {
-
-        public float playerX, playerZ;         // player world pos (XZ plane)
-        public int rezProtect;                 // frames since (re)spawn; 0xFF = safe to “go hard”
-        public int enemyScore;
-        public int playerScore;
-        public long nmiCount;                   // monotonically increasing
-        public boolean projectileBusy;
-        public TankType tankType = TankType.SLOW;
-
-        public CollisionChecker collisionChecker = (x, z) -> false;
-        public Shooter shooter = () -> {
-        };
-    }
-
-    public interface CollisionChecker {
-
-        boolean collides(float x, float z);
-    }
-
-    public interface Shooter {
-
-        void shoot();
     }
 
     public static final class Enemy {
@@ -100,7 +75,7 @@ public final class EnemyAI {
             return pos.z;
         }
 
-        public void applyWrappedTransform(Context ctx) {
+        public void applyWrappedTransform(GameContext ctx) {
 
             final int refX16 = to16(ctx.playerX);
             final int refZ16 = to16(ctx.playerZ);
@@ -126,7 +101,7 @@ public final class EnemyAI {
 
     }
 
-    public static void update(Enemy enmy, Context ctx, float dt) {
+    public static void update(Enemy enmy, GameContext ctx, float dt) {
 
         if (ctx.rezProtect != 255) {
             ctx.rezProtect = Math.min(255, ctx.rezProtect + 1);
@@ -145,7 +120,7 @@ public final class EnemyAI {
         enmy.applyWrappedTransform(ctx);
     }
 
-    private static void updateTank(Enemy enmy, Context ctx, float dt) {
+    private static void updateTank(Enemy enmy, GameContext ctx, float dt) {
 
         if (enmy.moveCounter > 0) {
             enmy.moveCounter--;
@@ -227,7 +202,7 @@ public final class EnemyAI {
         }
     }
 
-    private static void setTankTurnTo(Enemy enmy, Context ctx) {
+    private static void setTankTurnTo(Enemy enmy, GameContext ctx) {
 
         final int JIT = (int) (ctx.nmiCount & 0x03L);          // for NEW_HEADING_FRAMES
         final int RJIT = (int) ((ctx.nmiCount >> 1) & 0x03L);   // for REVERSE_TIME_FRAMES
@@ -298,7 +273,7 @@ public final class EnemyAI {
         enmy.pos.z += MathUtils.cos(rad) * spd;
     }
 
-    private static void forward(Enemy enmy, Context ctx, float mult, float dt) {
+    private static void forward(Enemy enmy, GameContext ctx, float mult, float dt) {
         float spd = FWD_SPEED_SLOW * mult * dt;
         stepForward(enmy, spd);
         if (ctx.collisionChecker.collides(enmy.pos.x, enmy.pos.z)) {
@@ -311,7 +286,7 @@ public final class EnemyAI {
         }
     }
 
-    private static void moveBackward(Enemy enmy, Context ctx, float dt) {
+    private static void moveBackward(Enemy enmy, GameContext ctx, float dt) {
         stepForward(enmy, -FWD_SPEED_SLOW * dt);
         if (ctx.collisionChecker.collides(enmy.pos.x, enmy.pos.z)) {
             enmy.restorePos();
@@ -344,14 +319,14 @@ public final class EnemyAI {
         enmy.facing = u8(enmy.facing + (raw >= 0 ? step : -step));
     }
 
-    private static int calcAngleToPlayer(Enemy enmy, Context ctx) {
+    private static int calcAngleToPlayer(Enemy enmy, GameContext ctx) {
         final int dx16 = wrapDelta16(to16(ctx.playerX) - to16(enmy.pos.x));
         final int dz16 = wrapDelta16(to16(ctx.playerZ) - to16(enmy.pos.z));
         float a = MathUtils.atan2((float) dx16, (float) dz16); // +Z is “north”
         return ((int) Math.round((a / MathUtils.PI2) * ANGLE_STEPS)) & 0xFF;
     }
 
-    private static void tryShootPlayer(Enemy enmy, Context ctx) {
+    private static void tryShootPlayer(Enemy enmy, GameContext ctx) {
         if (ctx.rezProtect < 32) {
             return; // be nice for ~2 sec
         }

@@ -72,7 +72,7 @@ public class BattleZone implements ApplicationListener, InputProcessor {
     private final Background background = new Background();
 
     private EnemyAI.Enemy enemy;
-    private final EnemyAI.Context context = new EnemyAI.Context();
+    private final GameContext context = new GameContext();
     private int nmiCount = 0;
 
     private Projectile projectile;
@@ -402,8 +402,8 @@ public class BattleZone implements ApplicationListener, InputProcessor {
     }
 
     private static float obstacleRadiusFromBounds(GameModelInstance inst) {
-        float rx = inst.localBounds.getWidth() * 0.5f;
-        float rz = inst.localBounds.getDepth() * 0.5f;
+        float rx = inst.localBounds.getWidth();
+        float rz = inst.localBounds.getDepth();
         return Math.max(rx, rz);
     }
 
