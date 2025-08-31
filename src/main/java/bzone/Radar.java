@@ -24,7 +24,7 @@ public class Radar {
     private boolean topLatched = false;       // prevents repeats while we're inside the window
     private float sweep256 = 0f;
 
-    public void drawRadar2D(PerspectiveCamera cam, ShapeRenderer sr, EnemyAI.Enemy enemy, List<GameModelInstance> obstacles, float dt) {
+    public void drawRadar2D(PerspectiveCamera cam, ShapeRenderer sr, Tank tank, List<GameModelInstance> obstacles, float dt) {
 
         if (dt > 0.1f) {
             dt = 0.1f;
@@ -82,8 +82,8 @@ public class Radar {
             sr.circle(px, py, 1);
         }
 
-        float edx16 = wrapDelta16(to16(enemy.pos.x) - to16(cam.position.x));
-        float edz16 = wrapDelta16(to16(enemy.pos.z) - to16(cam.position.z));
+        float edx16 = wrapDelta16(to16(tank.pos.x) - to16(cam.position.x));
+        float edz16 = wrapDelta16(to16(tank.pos.z) - to16(cam.position.z));
         int enemyBearing8 = angle256(edx16, edz16);
         int rel8 = (enemyBearing8 - playerHeading8) & 0xFF;
 

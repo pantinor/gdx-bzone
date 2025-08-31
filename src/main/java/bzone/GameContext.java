@@ -2,13 +2,15 @@ package bzone;
 
 public class GameContext {
 
-    public float playerX, playerZ;         // player world pos (XZ plane)
-    public int rezProtect;                 // frames since (re)spawn; 0xFF = safe to “go hard”
+    public float playerX, playerZ;
+    public int spawnProtected;
     public int enemyScore;
     public int playerScore;
-    public long nmiCount;                   // monotonically increasing
+    public long nmiCount;
     public boolean projectileBusy;
-    public EnemyAI.TankType tankType = EnemyAI.TankType.SLOW;
+    public boolean missileBusy;
+    
+    public Tank.TankType tankType = Tank.TankType.SLOW;
 
     public CollisionChecker collisionChecker = (x, z) -> false;
     public Shooter shooter = () -> {

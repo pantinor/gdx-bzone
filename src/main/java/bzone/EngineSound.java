@@ -16,7 +16,7 @@ public class EngineSound {
 
     // Carrier (the "engine tone" you actually hear) maps independently
     private static final float CARRIER_IDLE = 38f;   // Hz
-    private static final float CARRIER_MAX = 165f;  // Hz
+    private static final float CARRIER_MAX = 48;  // Hz
 
     // Gains
     private static final float MASTER_GAIN = 0.22f;

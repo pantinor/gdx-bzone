@@ -79,20 +79,20 @@ public class Projectile {
 
     }
 
-    public void spawnFromEnemy(EnemyAI.Enemy enmy, GameContext ctx, List<GameModelInstance> obstacles) {
+    public void spawnFromEnemy(Tank tank, GameContext ctx, List<GameModelInstance> obstacles) {
 
         if (active) {
             return;
         }
 
-        float yawDeg = (enmy.facing * 360f) / EnemyAI.ANGLE_STEPS;
-        float rad = enmy.facing * MathUtils.PI2 / EnemyAI.ANGLE_STEPS;
+        float yawDeg = (tank.facing * 360f) / Tank.ANGLE_STEPS;
+        float rad = tank.facing * MathUtils.PI2 / Tank.ANGLE_STEPS;
 
         vel.set(MathUtils.sin(rad), 0f, MathUtils.cos(rad)).scl(PROJECTILE_SPEED_PER_SEC);
 
         // Spawn slightly ahead of the muzzle
         Vector3 dir = new Vector3(vel).nor();
-        pos.set(enmy.pos.x, WORLD_Y, enmy.pos.z).add(
+        pos.set(tank.pos.x, WORLD_Y, tank.pos.z).add(
                 dir.x * PROJECTILE_SPAWN_OFFSET,
                 0f,
                 dir.z * PROJECTILE_SPAWN_OFFSET

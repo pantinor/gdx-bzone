@@ -65,16 +65,17 @@ public class BattleZone implements ApplicationListener, InputProcessor {
     private PerspectiveCamera cam;
     private OrthographicCamera backGroundCam;
     private Environment environment;
-    private final List<GameModelInstance> modelInstances = new ArrayList<>();
     private final List<GameModelInstance> obstacles = new ArrayList<>(21);
     private ShapeRenderer sr;
     private final Background background = new Background();
 
-    private EnemyAI.Enemy enemy;
     private final GameContext context = new GameContext();
     private int nmiCount = 0;
 
+    //private Missile projectile;
+    private Tank tank;
     private Projectile projectile;
+
     private final Radar radarScreen = new Radar();
     private EngineSound engine;
 
@@ -111,23 +112,22 @@ public class BattleZone implements ApplicationListener, InputProcessor {
 
         modelBatch = new ModelBatch();
 
-        cam.position.set(spawnX(), 0.5f, spawnZ());
-        headingDeg = rand8();//0 is facing the moon
-
         GameModelInstance tank = Models.buildWireframeInstance(Models.Mesh.SLOW_TANK.wf(), Color.RED, 1, -1f, 3f, 0.5f, 3f);
-        modelInstances.add(tank);
         GameModelInstance radar = Models.buildWireframeInstance(Models.Mesh.RADAR1.wf(), Color.RED, 1, -1f, 3f, 0.5f, 3f);
+        GameModelInstance missile = Models.buildWireframeInstance(Models.Mesh.MISSILE.wf(), Color.WHITE, 1, -1f, 3f, 0.5f, 3f);
 
-        enemy = new EnemyAI.Enemy(tank);
-        enemy.pos.x = 12000;
-        enemy.pos.z = 12000;
-        enemy.facing = 0;
+        this.tank = new Tank(tank, radar);
+
         context.collisionChecker = this::collidesAnyModelXZ;
-        enemy.setRadar(radar);
+
+        randomSpawn(cam.position, context);
+        randomSpawn(this.tank.pos, context);
+
+        headingDeg = rand8();//0 is facing the moon
 
         GameModelInstance projectileInstance = Models.buildWireframeInstance(Models.Mesh.PROJECTILE.wf(), Color.YELLOW, 1, -1f, 0f, 0.5f, 0f);
         projectile = new Projectile(projectileInstance);
-        context.shooter = () -> projectile.spawnFromEnemy(enemy, context, obstacles);
+        context.shooter = () -> projectile.spawnFromEnemy(this.tank, context, obstacles);
 
         loadMapObstacles();
 
@@ -173,10 +173,11 @@ public class BattleZone implements ApplicationListener, InputProcessor {
         context.playerX = cam.position.x;
         context.playerZ = cam.position.z;
         context.nmiCount = ++this.nmiCount;
-        
+
         projectile.update(context, obstacles, dt);
-        EnemyAI.update(enemy, context, dt);
+        tank.update(context, dt);
         context.projectileBusy = projectile.active;
+        engine.update(dt);
 
         Gdx.gl.glViewport(0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         Gdx.gl.glClear(GL30.GL_COLOR_BUFFER_BIT | GL30.GL_DEPTH_BUFFER_BIT);
@@ -189,13 +190,7 @@ public class BattleZone implements ApplicationListener, InputProcessor {
             modelBatch.render(projectile.inst, environment);
         }
 
-        for (ModelInstance inst : modelInstances) {
-            modelBatch.render(inst, environment);
-        }
-
-        if (enemy.radar() != null) {
-            modelBatch.render(enemy.radar(), environment);
-        }
+        tank.render(modelBatch, environment);
 
         modelBatch.end();
 
@@ -234,10 +229,13 @@ public class BattleZone implements ApplicationListener, InputProcessor {
                 return true;
 
             case Input.Keys.NUM_1:
+                context.playerScore = 1;
                 return true;
             case Input.Keys.NUM_2:
+                context.playerScore = -1;
                 return true;
             case Input.Keys.NUM_3:
+                context.playerScore = 0;
                 return true;
             case Input.Keys.NUM_4:
                 return true;
@@ -352,7 +350,7 @@ public class BattleZone implements ApplicationListener, InputProcessor {
         sr.end();
         Gdx.gl.glLineWidth(1);
 
-        radarScreen.drawRadar2D(cam, sr, enemy, obstacles, dt);
+        radarScreen.drawRadar2D(cam, sr, tank, obstacles, dt);
     }
 
     private void loadMapObstacles() {
@@ -454,7 +452,7 @@ public class BattleZone implements ApplicationListener, InputProcessor {
 
         float wx = refX + dx16;
         float wz = refZ + dz16;
-        
+
         return out.set(wx, inst.initialPos.y, wz);
     }
 
@@ -462,12 +460,21 @@ public class BattleZone implements ApplicationListener, InputProcessor {
         return ThreadLocalRandom.current().nextInt(256);
     }
 
-    private static int spawnX() {
-        return ((rand8() & 0xFF) << 8) | (rand8() & 0xFF);
-    }
+    private static void randomSpawn(Vector3 pos, GameContext ctx) {
+        while (true) {
+            int rx = ((rand8() & 0xFF) << 8) | (rand8() & 0xFF);
+            int rz = ((rand8() & 0xFF) << 8) | (rand8() & 0xFF);
 
-    private static int spawnZ() {
-        return (((rand8() & 0x3F) << 8) | (rand8() & 0xFF));
+            float x = BattleZone.wrap16f((float) rx);
+            float z = BattleZone.wrap16f((float) rz);
+
+            if (!ctx.collisionChecker.collides(x, z)) {
+                pos.x = x;
+                pos.y = 0.5f;
+                pos.z = z;
+                return;
+            }
+        }
     }
 
 }
