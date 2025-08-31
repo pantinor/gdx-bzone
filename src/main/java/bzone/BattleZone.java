@@ -174,7 +174,7 @@ public class BattleZone implements ApplicationListener, InputProcessor {
         context.playerZ = cam.position.z;
         context.nmiCount = ++this.nmiCount;
         
-        projectile.update(context, obstacles);
+        projectile.update(context, obstacles, dt);
         EnemyAI.update(enemy, context, dt);
         context.projectileBusy = projectile.active;
 
@@ -428,7 +428,7 @@ public class BattleZone implements ApplicationListener, InputProcessor {
         return r;
     }
 
-    public static int wrapDelta16(int d) {
+    public static float wrapDelta16(float d) {
         if (d > WORLD_WRAP_HALF_16BIT) {
             return d - WORLD_WRAP_16BIT;
         }
@@ -438,26 +438,27 @@ public class BattleZone implements ApplicationListener, InputProcessor {
         return d;
     }
 
-    public static int to16(float v) {
-        return ((int) Math.round(v)) & 0xFFFF;
+    public static float to16(float v) {
+        return Math.round(v) & 0xFFFF;
     }
 
     public static Vector3 nearestWrappedPos(GameModelInstance inst, float refX, float refZ, Vector3 out) {
-        int refX16 = to16(refX);
-        int refZ16 = to16(refZ);
+        float refX16 = to16(refX);
+        float refZ16 = to16(refZ);
 
-        int obX16 = (int) Math.round(inst.initialPos.x);
-        int obZ16 = (int) Math.round(inst.initialPos.z);
+        float obX16 = Math.round(inst.initialPos.x);
+        float obZ16 = Math.round(inst.initialPos.z);
 
-        int dx16 = wrapDelta16(obX16 - refX16);
-        int dz16 = wrapDelta16(obZ16 - refZ16);
+        float dx16 = wrapDelta16(obX16 - refX16);
+        float dz16 = wrapDelta16(obZ16 - refZ16);
 
         float wx = refX + dx16;
         float wz = refZ + dz16;
+        
         return out.set(wx, inst.initialPos.y, wz);
     }
 
-    public static int rand8() {
+    private static int rand8() {
         return ThreadLocalRandom.current().nextInt(256);
     }
 

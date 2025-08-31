@@ -53,8 +53,8 @@ public class Radar {
         sr.line(RADAR_CX, RADAR_CY, ex, ey);
 
         for (GameModelInstance inst : obstacles) {
-            int dx16 = wrapDelta16(to16(inst.initialPos.x) - to16(cam.position.x));
-            int dz16 = wrapDelta16(to16(inst.initialPos.z) - to16(cam.position.z));
+            float dx16 = wrapDelta16(to16(inst.initialPos.x) - to16(cam.position.x));
+            float dz16 = wrapDelta16(to16(inst.initialPos.z) - to16(cam.position.z));
 
             int bearing8 = angle256(dx16, dz16);
             int rel8 = (bearing8 - playerHeading8) & 0xFF;
@@ -68,12 +68,12 @@ public class Radar {
             float px = RADAR_CX - sb * r;
             float py = RADAR_CY + cb * r;
 
-            sr.setColor(0f, 0f, 1f, 0.65f);
+            sr.setColor(0.2f, 0.2f, 0.2f, 0.65f);
             sr.circle(px, py, 1);
         }
 
-        int edx16 = wrapDelta16(to16(enemy.pos.x) - to16(cam.position.x));
-        int edz16 = wrapDelta16(to16(enemy.pos.z) - to16(cam.position.z));
+        float edx16 = wrapDelta16(to16(enemy.pos.x) - to16(cam.position.x));
+        float edz16 = wrapDelta16(to16(enemy.pos.z) - to16(cam.position.z));
         int enemyBearing8 = angle256(edx16, edz16);
         int rel8 = (enemyBearing8 - playerHeading8) & 0xFF;
 
@@ -92,8 +92,8 @@ public class Radar {
         sr.end();
     }
 
-    private static int angle256(int dx, int dz) {
-        float ang = MathUtils.atan2((float) dx, (float) dz); // 0 = +Z
+    private static int angle256(float dx, float dz) {
+        float ang = MathUtils.atan2(dx, dz); // 0 = +Z
         return Math.round((ang / MathUtils.PI2) * 256f) & 0xFF;
     }
 

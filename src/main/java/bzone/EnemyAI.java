@@ -77,16 +77,16 @@ public final class EnemyAI {
 
         public void applyWrappedTransform(GameContext ctx) {
 
-            final int refX16 = to16(ctx.playerX);
-            final int refZ16 = to16(ctx.playerZ);
-            final int obX16 = to16(pos.x);
-            final int obZ16 = to16(pos.z);
+            float refX16 = to16(ctx.playerX);
+            float refZ16 = to16(ctx.playerZ);
+            float obX16 = to16(pos.x);
+            float obZ16 = to16(pos.z);
 
-            final int dx16 = wrapDelta16(obX16 - refX16);
-            final int dz16 = wrapDelta16(obZ16 - refZ16);
+            float dx16 = wrapDelta16(obX16 - refX16);
+            float dz16 = wrapDelta16(obZ16 - refZ16);
 
-            final float wx = ctx.playerX + dx16;   // nearest wrapped image to the player
-            final float wz = ctx.playerZ + dz16;
+            float wx = ctx.playerX + dx16;
+            float wz = ctx.playerZ + dz16;
 
             instance.transform.idt()
                     .translate(wx, pos.y, wz)
@@ -190,9 +190,9 @@ public final class EnemyAI {
         tryShootPlayer(enmy, ctx);
 
         // Distance → forward; extra push when perfectly aligned
-        final int dx16 = wrapDelta16(to16(ctx.playerX) - to16(enmy.pos.x));
-        final int dz16 = wrapDelta16(to16(ctx.playerZ) - to16(enmy.pos.z));
-        final float dist = (float) Math.sqrt((float) dx16 * dx16 + (float) dz16 * dz16);
+        float dx16 = wrapDelta16(to16(ctx.playerX) - to16(enmy.pos.x));
+        float dz16 = wrapDelta16(to16(ctx.playerZ) - to16(enmy.pos.z));
+        float dist = (float) Math.sqrt(dx16 * dx16 + dz16 * dz16);
 
         final float forwardStart = (ctx.tankType == TankType.SUPER) ? FWD_START_DISTANCE_SUPER_TANK : FWD_START_DISTANCE_SLOW_TANK;
 
@@ -320,8 +320,8 @@ public final class EnemyAI {
     }
 
     private static int calcAngleToPlayer(Enemy enmy, GameContext ctx) {
-        final int dx16 = wrapDelta16(to16(ctx.playerX) - to16(enmy.pos.x));
-        final int dz16 = wrapDelta16(to16(ctx.playerZ) - to16(enmy.pos.z));
+        float dx16 = wrapDelta16(to16(ctx.playerX) - to16(enmy.pos.x));
+        float dz16 = wrapDelta16(to16(ctx.playerZ) - to16(enmy.pos.z));
         float a = MathUtils.atan2((float) dx16, (float) dz16); // +Z is “north”
         return ((int) Math.round((a / MathUtils.PI2) * ANGLE_STEPS)) & 0xFF;
     }
