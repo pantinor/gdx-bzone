@@ -1,5 +1,6 @@
 package bzone;
 
+import static bzone.BattleZone.WORLD_WRAP_HALF_16BIT;
 import static bzone.BattleZone.to16;
 import static bzone.BattleZone.wrap16f;
 import static bzone.BattleZone.wrapDelta16;
@@ -12,8 +13,8 @@ import com.badlogic.gdx.math.Vector3;
 public class Missile {
 
     private static final float BASE_SPEED = 3600f;
-    private static final float SPEED_RAMP = 1.20f;
-    private static final float MAX_SPEED = 6400f;
+    private static final float SPEED_RAMP = 1.50f;
+    private static final float MAX_SPEED = 12400f;
 
     private static final float TURN_DEG_PER_SEC = 180f;
 
@@ -22,7 +23,11 @@ public class Missile {
     private static final float HOP_COOLDOWN = 0.10f;
     private static final float MISSILE_RADIUS = 300;
 
+    private static final float GRAVITY = -6000f;
+    private float verticalVelocity = 0f;
+
     private boolean hopping = false;
+    private boolean falling = false;
     private float hopPhase = 0f;
     private float hopCooldown = 0f;
 
@@ -63,20 +68,24 @@ public class Missile {
 
     public void spawn(GameContext ctx) {
 
-        int R = 0x6000;
+        int start = WORLD_WRAP_HALF_16BIT - 4000;
+
         int angSteps = MathUtils.round((ctx.hdFromCam / 360f) * ANGLE_STEPS) & 0xFF;
         float rad = angSteps * MathUtils.PI2 / ANGLE_STEPS;
 
-        float offX = MathUtils.sin(rad) * R;
-        float offZ = MathUtils.cos(rad) * R;
+        float offX = MathUtils.sin(rad) * start;
+        float offZ = MathUtils.cos(rad) * start;
 
         this.pos.set(
                 wrap16f(ctx.playerX + offX),
-                0f,
+                6000f,
                 wrap16f(ctx.playerZ + offZ)
         );
 
         this.facing = 64;
+        this.verticalVelocity = 0f;
+        this.falling = (this.pos.y > 0f);
+        this.hopping = false;
         this.speed = BASE_SPEED;
         this.hopPhase = 0f;
         this.active = true;
@@ -98,6 +107,20 @@ public class Missile {
             return;
         }
 
+        // Airborne phase: fall straight down; no hop, no horizontal movement, no collision probe.
+        if (falling) {
+            verticalVelocity += GRAVITY * dt;
+            pos.y += verticalVelocity * dt;
+            if (pos.y <= 0f) {
+                pos.y = 0f;
+                verticalVelocity = 0f;
+                falling = false;
+            }
+            applyWrappedTransform(ctx);
+            return;
+        }
+
+        // turn toward player
         int desired = calcAngleToPlayer(ctx);
         int delta = signed8((desired - this.facing) & 0xFF);
 
@@ -124,32 +147,35 @@ public class Missile {
         }
 
         if (!hopping) {
+            // look ahead for a collision
             float probeX = pos.x - fx * 3900;
             float probeZ = pos.z - fz * 3900;
             boolean willCollide = ctx.collisionChecker.collides(probeX, probeZ);
+
             if (willCollide && hopCooldown <= 0f) {
+                // start a hop
                 hopping = true;
                 hopPhase = 0f;
                 pos.x += fx * Math.min(MISSILE_RADIUS, step * 0.5f);
                 pos.z += fz * Math.min(MISSILE_RADIUS, step * 0.5f);
             } else {
+                // move normally
                 pos.x += dx;
                 pos.z += dz;
-                pos.y = 0f;
             }
-        }
-
-        if (hopping) {
+        } else if (hopping) {
+            // hop arc
             hopPhase += dt / HOP_DURATION;
             float t = MathUtils.clamp(hopPhase, 0f, 1f);
             float yOffset = MathUtils.sin(t * MathUtils.PI) * HOP_HEIGHT;
             pos.x += dx;
             pos.z += dz;
             pos.y = yOffset;
+
             if (t >= 1f) {
                 hopping = false;
                 hopCooldown = HOP_COOLDOWN;
-                pos.y = 0f;
+                pos.y = 0f; // ground
             }
         }
 
