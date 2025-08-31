@@ -1,14 +1,14 @@
 package bzone;
 
 public class GameContext {
-
+    
+    public float hdFromCam;
     public float playerX, playerZ;
     public int spawnProtected;
     public int enemyScore;
     public int playerScore;
     public long nmiCount;
     public boolean projectileBusy;
-    public boolean missileBusy;
     
     public Tank.TankType tankType = Tank.TankType.SLOW;
 

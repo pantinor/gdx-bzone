@@ -18,6 +18,7 @@ import com.badlogic.gdx.graphics.g3d.ModelBatch;
 import com.badlogic.gdx.graphics.g3d.ModelInstance;
 import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector3;
 import java.util.ArrayList;
 import java.util.List;
@@ -74,6 +75,7 @@ public class BattleZone implements ApplicationListener, InputProcessor {
 
     //private Missile projectile;
     private Tank tank;
+    private Missile missile;
     private Projectile projectile;
 
     private final Radar radarScreen = new Radar();
@@ -112,11 +114,12 @@ public class BattleZone implements ApplicationListener, InputProcessor {
 
         modelBatch = new ModelBatch();
 
-        GameModelInstance tank = Models.buildWireframeInstance(Models.Mesh.SLOW_TANK.wf(), Color.RED, 1, -1f, 3f, 0.5f, 3f);
-        GameModelInstance radar = Models.buildWireframeInstance(Models.Mesh.RADAR1.wf(), Color.RED, 1, -1f, 3f, 0.5f, 3f);
-        GameModelInstance missile = Models.buildWireframeInstance(Models.Mesh.MISSILE.wf(), Color.WHITE, 1, -1f, 3f, 0.5f, 3f);
+        GameModelInstance tm = Models.buildWireframeInstance(Models.Mesh.SLOW_TANK.wf(), Color.RED, 1, -1f, 3f, 0.5f, 3f);
+        GameModelInstance rm = Models.buildWireframeInstance(Models.Mesh.RADAR1.wf(), Color.RED, 1, -1f, 3f, 0.5f, 3f);
+        GameModelInstance mm = Models.buildWireframeInstance(Models.Mesh.MISSILE.wf(), Color.WHITE, 1, -1f, 3f, 0.5f, 3f);
 
-        this.tank = new Tank(tank, radar);
+        this.tank = new Tank(tm, rm);
+        this.missile = new Missile(mm);
 
         context.collisionChecker = this::collidesAnyModelXZ;
 
@@ -177,6 +180,7 @@ public class BattleZone implements ApplicationListener, InputProcessor {
         projectile.update(context, obstacles, dt);
         tank.update(context, dt);
         context.projectileBusy = projectile.active;
+        missile.update(context, dt);
         engine.update(dt);
 
         Gdx.gl.glViewport(0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
@@ -191,6 +195,7 @@ public class BattleZone implements ApplicationListener, InputProcessor {
         }
 
         tank.render(modelBatch, environment);
+        missile.render(modelBatch, environment);
 
         modelBatch.end();
 
@@ -199,14 +204,15 @@ public class BattleZone implements ApplicationListener, InputProcessor {
 
         sr.setProjectionMatrix(backGroundCam.combined);
 
-        float hd = (headingDeg % 360f + 360f) % 360f;
-
+        context.hdFromCam = (MathUtils.atan2(cam.direction.x, cam.direction.z) * MathUtils.radiansToDegrees + 360f) % 360f;
+        float  hd = (headingDeg % 360f + 360f) % 360f;
+        
         background.drawBackground2D(sr, hd);
 
         drawHUD(dt);
 
         batch.begin();
-        font.draw(batch, "pos = " + cam.position.x + " " + cam.position.z, 100, SCREEN_HEIGHT - 100);
+        font.draw(batch, "hd " + hd + " pos = " + cam.position.x + " " + cam.position.z, 100, SCREEN_HEIGHT - 100);
         batch.end();
     }
 
@@ -238,6 +244,7 @@ public class BattleZone implements ApplicationListener, InputProcessor {
                 context.playerScore = 0;
                 return true;
             case Input.Keys.NUM_4:
+                missile.spawn(context);
                 return true;
             case Input.Keys.NUM_5:
                 return true;

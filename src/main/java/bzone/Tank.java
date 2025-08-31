@@ -216,7 +216,7 @@ public class Tank {
                 this.moveCounter = REVERSE_TIME_FRAMES + RJIT;
                 return;
             }
-            
+
             // head 90° off the player
             // the tank’s facing direction is stored in an 8-bit angle space (0–255, i.e. 256 steps around a circle).
             // A full circle (360°) = 256 steps, so:
@@ -232,7 +232,7 @@ public class Tank {
             //So this one bit-flip always pivots the direction exactly perpendicular (90°) to the target vector, 
             //but toggles between left/right depending on where the player is.
             this.turnTo = u8(ang ^ 64);
-            
+
             this.reverseFlags &= ~0x01;
             this.moveCounter = NEW_HEADING_FRAMES + JIT;
             return;

@@ -8,6 +8,13 @@ public class Sounds {
     public enum Effect {
 
         EXPLOSION("explosion.ogg", false),
+        FIRE("fire.ogg", false),
+        BUMP("bump.ogg", false),
+        SPAWN("spawn.ogg", false),
+        SAUCER_ACTIVE("saucer.ogg", true),
+        SAUCER_HIT("saucer-hit.ogg", true),
+        MISSILE_MAX("maximize.ogg", false),
+        MISSILE_MIN("minimize.ogg", false),
         RADAR("radar.ogg", false);
 
         private Sound sound;
@@ -38,4 +45,7 @@ public class Sounds {
         }
     }
 
+    public static void stop(Effect s) {
+        s.sound.stop();
+    }
 }
