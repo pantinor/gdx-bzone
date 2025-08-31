@@ -14,12 +14,17 @@ public class Missile {
     private static final float BASE_SPEED = 3600f;
     private static final float SPEED_RAMP = 1.20f;
     private static final float MAX_SPEED = 6400f;
+
     private static final float TURN_DEG_PER_SEC = 180f;
 
-    private static final float HOP_AMPLITUDE = 180f;
-    private static final float HOP_FREQ_HZ = 1.5f;
+    private static final float HOP_HEIGHT = 1200f;
+    private static final float HOP_DURATION = 0.50f;
+    private static final float HOP_COOLDOWN = 0.10f;
+    private static final float MISSILE_RADIUS = 300;
 
-    private static final float HIT_RADIUS = 800;
+    private boolean hopping = false;
+    private float hopPhase = 0f;
+    private float hopCooldown = 0f;
 
     private final GameModelInstance inst;
 
@@ -27,7 +32,6 @@ public class Missile {
 
     private int facing;
     private float speed = BASE_SPEED;
-    private float hopPhase = 0f;
     public boolean active = false;
 
     public Missile(GameModelInstance inst) {
@@ -47,12 +51,8 @@ public class Missile {
         float wz = ctx.playerZ + dz16;
 
         inst.transform.idt()
-                .translate(wx, pos.y + hopOffset(), wz)
+                .translate(wx, pos.y, wz)
                 .rotate(Vector3.Y, facing * 360f / ANGLE_STEPS);
-    }
-
-    private float hopOffset() {
-        return MathUtils.sin(hopPhase) * HOP_AMPLITUDE;
     }
 
     public void kill() {
@@ -82,7 +82,7 @@ public class Missile {
         this.active = true;
 
         applyWrappedTransform(ctx);
-        
+
         Sounds.play(Sounds.Effect.MISSILE_MAX);
     }
 
@@ -98,11 +98,6 @@ public class Missile {
             return;
         }
 
-        hopPhase += MathUtils.PI2 * HOP_FREQ_HZ * Math.max(0.0001f, dt);
-        if (hopPhase > MathUtils.PI2) {
-            hopPhase -= MathUtils.PI2;
-        }
-
         int desired = calcAngleToPlayer(ctx);
         int delta = signed8((desired - this.facing) & 0xFF);
 
@@ -114,23 +109,53 @@ public class Missile {
             this.facing = u8(this.facing + Math.max(delta, -maxStep));
         }
 
-        int absDelta = Math.abs(delta);
-        if (absDelta <= 12) { // ~17°
-            speed = Math.min(MAX_SPEED, speed * SPEED_RAMP);
-        } else if (absDelta >= 64) { // 90° off, dampen a bit
-            speed = Math.max(BASE_SPEED, speed * 0.95f);
+        speed = Math.min(MAX_SPEED, speed * SPEED_RAMP);
+
+        float rad = (facing & 0xFF) * (MathUtils.PI2 / ANGLE_STEPS);
+        float fx = MathUtils.sin(rad);
+        float fz = MathUtils.cos(rad);
+
+        float step = speed * dt;
+        float dx = fx * step;
+        float dz = fz * step;
+
+        if (hopCooldown > 0f) {
+            hopCooldown = Math.max(0f, hopCooldown - dt);
         }
 
-        float rad = this.facing * MathUtils.PI2 / ANGLE_STEPS;
-        float stepX = MathUtils.sin(rad) * speed * dt;
-        float stepZ = MathUtils.cos(rad) * speed * dt;
+        if (!hopping) {
+            float probeX = pos.x - fx * 3900;
+            float probeZ = pos.z - fz * 3900;
+            boolean willCollide = ctx.collisionChecker.collides(probeX, probeZ);
+            if (willCollide && hopCooldown <= 0f) {
+                hopping = true;
+                hopPhase = 0f;
+                pos.x += fx * Math.min(MISSILE_RADIUS, step * 0.5f);
+                pos.z += fz * Math.min(MISSILE_RADIUS, step * 0.5f);
+            } else {
+                pos.x += dx;
+                pos.z += dz;
+                pos.y = 0f;
+            }
+        }
 
-        pos.add(stepX, 0f, stepZ);
+        if (hopping) {
+            hopPhase += dt / HOP_DURATION;
+            float t = MathUtils.clamp(hopPhase, 0f, 1f);
+            float yOffset = MathUtils.sin(t * MathUtils.PI) * HOP_HEIGHT;
+            pos.x += dx;
+            pos.z += dz;
+            pos.y = yOffset;
+            if (t >= 1f) {
+                hopping = false;
+                hopCooldown = HOP_COOLDOWN;
+                pos.y = 0f;
+            }
+        }
 
         float dx16 = wrapDelta16(to16(this.pos.x) - to16(ctx.playerX));
         float dz16 = wrapDelta16(to16(this.pos.z) - to16(ctx.playerZ));
-
-        if (dx16 * dx16 + dz16 * dz16 <= HIT_RADIUS * HIT_RADIUS) {
+        if (dx16 * dx16 + dz16 * dz16 <= MISSILE_RADIUS * MISSILE_RADIUS) {
             kill();
             return;
         }

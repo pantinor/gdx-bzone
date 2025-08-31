@@ -54,8 +54,6 @@ public class BattleZone implements ApplicationListener, InputProcessor {
      */
     public static final int WORLD_WRAP_HALF_16BIT = WORLD_WRAP_16BIT >>> 1; // 32768
 
-    private static final float ENEMY_COLLISION_RADIUS = 1f; // tune to match tank size
-
     private boolean wDown, aDown, sDown, dDown;
     private final float yawSpeedDeg = 90f;
     private final float moveSpeed = 3200f;
@@ -417,7 +415,7 @@ public class BattleZone implements ApplicationListener, InputProcessor {
             Vector3 wrapped = nearestWrappedPos(inst, x, z, TMP1);
             float dx = wrapped.x - x;
             float dz = wrapped.z - z;
-            float r = ENEMY_COLLISION_RADIUS + obstacleRadiusFromBounds(inst);
+            float r = obstacleRadiusFromBounds(inst);
             if (dx * dx + dz * dz <= r * r) {
                 return true;
             }
