@@ -21,6 +21,7 @@ public class Radar {
     private static final float RADAR_CY = SCREEN_HEIGHT - 110f;
     private static final float RADAR_RADIUS = 100;
 
+    private boolean topLatched = false;       // prevents repeats while we're inside the window
     private float sweep256 = 0f;
 
     public void drawRadar2D(PerspectiveCamera cam, ShapeRenderer sr, EnemyAI.Enemy enemy, List<GameModelInstance> obstacles, float dt) {
@@ -51,6 +52,15 @@ public class Radar {
         float ex = RADAR_CX - sn * RADAR_RADIUS;
         float ey = RADAR_CY + cs * RADAR_RADIUS;
         sr.line(RADAR_CX, RADAR_CY, ex, ey);
+
+        if (atTop(sweepRel8)) {
+            if (!topLatched) {
+                Sounds.play(Sounds.Effect.RADAR);
+                topLatched = true;
+            }
+        } else {
+            topLatched = false;
+        }
 
         for (GameModelInstance inst : obstacles) {
             float dx16 = wrapDelta16(to16(inst.initialPos.x) - to16(cam.position.x));
@@ -97,4 +107,7 @@ public class Radar {
         return Math.round((ang / MathUtils.PI2) * 256f) & 0xFF;
     }
 
+    private static boolean atTop(int angle) {
+        return angle <= 3 || angle >= (256 - 3);    // ~4.2° (3/256 of a turn)
+    }
 }

@@ -7,7 +7,8 @@ public class Sounds {
 
     public enum Effect {
 
-        EXPLOSION("explosion.ogg", false);
+        EXPLOSION("explosion.ogg", false),
+        RADAR("radar.ogg", false);
 
         private Sound sound;
         private boolean looping;

@@ -18,7 +18,6 @@ public class Projectile {
     private static final float PROJECTILE_SPAWN_OFFSET = 0.8f;
     private static final float PROJECTILE_SPEED_PER_SEC = 15000;
     private static final int PROJECTILE_TTL_FRAMES = 180;
-    private static final float PROJECTILE_RADIUS = 0.15f;
     private static final float PLAYER_HIT_RADIUS = 800;
 
     private static final float WORLD_Y = 0.5f;
@@ -50,7 +49,7 @@ public class Projectile {
         // steps and substeps for collision detection is to avoid a common problem called tunneling 
         // where a fast-moving object "skips through" obstacles between frames
         float moveLenSq = stepX * stepX + stepZ * stepZ;
-        int steps = Math.max(1, (int) Math.ceil(Math.sqrt(moveLenSq) / (PROJECTILE_RADIUS * 0.5f)));
+        int steps = Math.max(1, (int) Math.ceil(Math.sqrt(moveLenSq)));
 
         float px = pos.x, pz = pos.z;
         for (int i = 1; i <= steps; i++) {
@@ -138,7 +137,7 @@ public class Projectile {
             float cz = MathUtils.clamp(projZ, minZ, maxZ);
             float dx = projX - cx, dz = projZ - cz;
 
-            if (dx * dx + dz * dz <= PROJECTILE_RADIUS * PROJECTILE_RADIUS) {
+            if (dx * dx + dz * dz <= 0) {
                 return true;
             }
         }
