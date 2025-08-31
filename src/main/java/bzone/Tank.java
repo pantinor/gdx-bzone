@@ -34,7 +34,7 @@ public class Tank {
     public final Vector3 pos = new Vector3();
     private final Vector3 savedPos = new Vector3();
 
-    private boolean alive = true;
+    public boolean alive = true;
     public int facing;                     // 0..255
     private int radarFacing;                // 0..255
     private int moveCounter;                // frames left for current plan

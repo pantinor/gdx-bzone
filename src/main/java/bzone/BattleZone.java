@@ -355,7 +355,7 @@ public class BattleZone implements ApplicationListener, InputProcessor {
         sr.end();
         Gdx.gl.glLineWidth(1);
 
-        radarScreen.drawRadar2D(cam, sr, tank, obstacles, dt);
+        radarScreen.drawRadar2D(cam, sr, tank, missile, obstacles, dt);
     }
 
     private void loadMapObstacles() {

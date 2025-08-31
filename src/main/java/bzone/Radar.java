@@ -24,7 +24,7 @@ public class Radar {
     private boolean topLatched = false;       // prevents repeats while we're inside the window
     private float sweep256 = 0f;
 
-    public void drawRadar2D(PerspectiveCamera cam, ShapeRenderer sr, Tank tank, List<GameModelInstance> obstacles, float dt) {
+    public void drawRadar2D(PerspectiveCamera cam, ShapeRenderer sr, Tank tank, Missile missile, List<GameModelInstance> obstacles, float dt) {
 
         if (dt > 0.1f) {
             dt = 0.1f;
@@ -82,22 +82,43 @@ public class Radar {
             sr.circle(px, py, 1);
         }
 
-        float edx16 = wrapDelta16(to16(tank.pos.x) - to16(cam.position.x));
-        float edz16 = wrapDelta16(to16(tank.pos.z) - to16(cam.position.z));
-        int enemyBearing8 = angle256(edx16, edz16);
-        int rel8 = (enemyBearing8 - playerHeading8) & 0xFF;
+        if (tank.alive) {
+            float edx16 = wrapDelta16(to16(tank.pos.x) - to16(cam.position.x));
+            float edz16 = wrapDelta16(to16(tank.pos.z) - to16(cam.position.z));
+            int enemyBearing8 = angle256(edx16, edz16);
+            int rel8 = (enemyBearing8 - playerHeading8) & 0xFF;
 
-        float dist = (float) Math.sqrt((float) edx16 * edx16 + (float) edz16 * edz16);
-        float t = MathUtils.clamp(dist / RADAR_RANGE_UNITS, 0f, 1f);
-        float mid = t * RADAR_RADIUS;
+            float dist = (float) Math.sqrt((float) edx16 * edx16 + (float) edz16 * edz16);
+            float t = MathUtils.clamp(dist / RADAR_RANGE_UNITS, 0f, 1f);
+            float mid = t * RADAR_RADIUS;
 
-        //draw blip of tank
-        float th = (rel8 / 256f) * MathUtils.PI2;
-        float cb = MathUtils.cos(th), sb = MathUtils.sin(th);
-        float px = RADAR_CX - sb * mid;
-        float py = RADAR_CY + cb * mid;
-        sr.setColor(1f, 0f, 0f, 0.65f);
-        sr.circle(px, py, 2);
+            //draw blip of tank
+            float th = (rel8 / 256f) * MathUtils.PI2;
+            float cb = MathUtils.cos(th), sb = MathUtils.sin(th);
+            float px = RADAR_CX - sb * mid;
+            float py = RADAR_CY + cb * mid;
+            sr.setColor(1f, 0f, 0f, 0.65f);
+            sr.circle(px, py, 2);
+        }
+
+        if (missile.active) {
+            float edx16 = wrapDelta16(to16(missile.pos.x) - to16(cam.position.x));
+            float edz16 = wrapDelta16(to16(missile.pos.z) - to16(cam.position.z));
+            int enemyBearing8 = angle256(edx16, edz16);
+            int rel8 = (enemyBearing8 - playerHeading8) & 0xFF;
+
+            float dist = (float) Math.sqrt((float) edx16 * edx16 + (float) edz16 * edz16);
+            float t = MathUtils.clamp(dist / RADAR_RANGE_UNITS, 0f, 1f);
+            float mid = t * RADAR_RADIUS;
+
+            //draw blip of missile
+            float th = (rel8 / 256f) * MathUtils.PI2;
+            float cb = MathUtils.cos(th), sb = MathUtils.sin(th);
+            float px = RADAR_CX - sb * mid;
+            float py = RADAR_CY + cb * mid;
+            sr.setColor(1f, 1f, 0f, 0.65f);
+            sr.circle(px, py, 2);
+        }
 
         sr.end();
     }

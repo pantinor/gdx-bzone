@@ -31,6 +31,10 @@ public class Missile {
     private float hopPhase = 0f;
     private float hopCooldown = 0f;
 
+    private boolean zigActive = true;
+    private int zigFlipsDone = 0;
+    private static final int MAX_ZIGZAGS = 2;
+
     private final GameModelInstance inst;
 
     public final Vector3 pos = new Vector3();
@@ -88,6 +92,8 @@ public class Missile {
         this.hopping = false;
         this.speed = BASE_SPEED;
         this.hopPhase = 0f;
+        this.zigActive = true;
+        this.zigFlipsDone = 0;
         this.active = true;
 
         applyWrappedTransform(ctx);
@@ -120,20 +126,52 @@ public class Missile {
             return;
         }
 
-        // turn toward player
+        // Base desired bearing to player
         int desired = calcAngleToPlayer(ctx);
-        int delta = signed8((desired - this.facing) & 0xFF);
 
-        float stepsPerSec = (TURN_DEG_PER_SEC / 360f) * ANGLE_STEPS;
-        int maxStep = Math.max(1, (int) Math.floor(stepsPerSec * dt));
-        if (delta > 0) {
-            this.facing = u8(this.facing + Math.min(delta, maxStep));
-        } else if (delta < 0) {
-            this.facing = u8(this.facing + Math.max(delta, -maxStep));
+        if (zigActive) {
+            final int ZIG_PERIOD_FRAMES = 28;
+            final int HALF_PERIOD = ZIG_PERIOD_FRAMES >> 1;
+            final int ZIG_ANGLE_STEPS = 12;
+            final int MAX_FLIPS = MAX_ZIGZAGS * 2;
+
+            int phase = (int) (ctx.nmiCount % ZIG_PERIOD_FRAMES);
+            int sign = (phase < HALF_PERIOD) ? +1 : -1;
+            int targetWithOffset = u8(desired + sign * ZIG_ANGLE_STEPS);
+            boolean atFlipBoundary = (phase == 0 || phase == HALF_PERIOD);
+            if (atFlipBoundary && !hopping) {
+                this.facing = targetWithOffset;
+                zigFlipsDone++;
+                if (zigFlipsDone >= MAX_FLIPS) {
+                    zigActive = false;
+                }
+            } else {
+                // While within a side (or while hopping), steer toward the side-offset bearing
+                final float TURN_WHILE_ZIG_DEG_PER_SEC = 220f;
+                int delta = signed8((targetWithOffset - this.facing) & 0xFF);
+                float stepsPerSec = (TURN_WHILE_ZIG_DEG_PER_SEC / 360f) * ANGLE_STEPS;
+                int maxStep = Math.max(1, (int) Math.floor(stepsPerSec * dt));
+                if (delta > 0) {
+                    this.facing = u8(this.facing + Math.min(delta, maxStep));
+                } else if (delta < 0) {
+                    this.facing = u8(this.facing + Math.max(delta, -maxStep));
+                }
+            }
+        } else {
+            // Zig phase finished -> straight homing to player (bounded turn rate)
+            int delta = signed8((desired - this.facing) & 0xFF);
+            float stepsPerSec = (TURN_DEG_PER_SEC / 360f) * ANGLE_STEPS;
+            int maxStep = Math.max(1, (int) Math.floor(stepsPerSec * dt));
+            if (delta > 0) {
+                this.facing = u8(this.facing + Math.min(delta, maxStep));
+            } else if (delta < 0) {
+                this.facing = u8(this.facing + Math.max(delta, -maxStep));
+            }
         }
 
         speed = Math.min(MAX_SPEED, speed * SPEED_RAMP);
 
+        // Move forward along current facing
         float rad = (facing & 0xFF) * (MathUtils.PI2 / ANGLE_STEPS);
         float fx = MathUtils.sin(rad);
         float fz = MathUtils.cos(rad);
@@ -147,24 +185,23 @@ public class Missile {
         }
 
         if (!hopping) {
-            // look ahead for a collision
+            // Look ahead for a collision; if so, start a hop
             float probeX = pos.x - fx * 3900;
             float probeZ = pos.z - fz * 3900;
             boolean willCollide = ctx.collisionChecker.collides(probeX, probeZ);
 
             if (willCollide && hopCooldown <= 0f) {
-                // start a hop
                 hopping = true;
                 hopPhase = 0f;
                 pos.x += fx * Math.min(MISSILE_RADIUS, step * 0.5f);
                 pos.z += fz * Math.min(MISSILE_RADIUS, step * 0.5f);
             } else {
-                // move normally
+                // Move normally
                 pos.x += dx;
                 pos.z += dz;
             }
-        } else if (hopping) {
-            // hop arc
+        } else {
+            // Hop arc
             hopPhase += dt / HOP_DURATION;
             float t = MathUtils.clamp(hopPhase, 0f, 1f);
             float yOffset = MathUtils.sin(t * MathUtils.PI) * HOP_HEIGHT;
@@ -179,8 +216,9 @@ public class Missile {
             }
         }
 
-        float dx16 = wrapDelta16(to16(this.pos.x) - to16(ctx.playerX));
-        float dz16 = wrapDelta16(to16(this.pos.z) - to16(ctx.playerZ));
+        // Proximity kill vs player
+        float dx16 = BattleZone.wrapDelta16(BattleZone.to16(this.pos.x) - BattleZone.to16(ctx.playerX));
+        float dz16 = BattleZone.wrapDelta16(BattleZone.to16(this.pos.z) - BattleZone.to16(ctx.playerZ));
         if (dx16 * dx16 + dz16 * dz16 <= MISSILE_RADIUS * MISSILE_RADIUS) {
             kill();
             return;
