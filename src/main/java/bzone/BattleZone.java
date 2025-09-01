@@ -6,6 +6,9 @@ import com.badlogic.gdx.Input;
 import com.badlogic.gdx.InputProcessor;
 import com.badlogic.gdx.backends.lwjgl3.Lwjgl3Application;
 import com.badlogic.gdx.backends.lwjgl3.Lwjgl3ApplicationConfiguration;
+import com.badlogic.gdx.controllers.Controller;
+import com.badlogic.gdx.controllers.ControllerListener;
+import com.badlogic.gdx.controllers.Controllers;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL30;
 import com.badlogic.gdx.graphics.PerspectiveCamera;
@@ -25,7 +28,7 @@ import java.util.List;
 import com.badlogic.gdx.math.Matrix4;
 import java.util.concurrent.ThreadLocalRandom;
 
-public class BattleZone implements ApplicationListener, InputProcessor {
+public class BattleZone implements ApplicationListener, InputProcessor, ControllerListener {
 
     public static void main(String[] args) {
         Lwjgl3ApplicationConfiguration cfg = new Lwjgl3ApplicationConfiguration();
@@ -54,9 +57,11 @@ public class BattleZone implements ApplicationListener, InputProcessor {
      */
     public static final int WORLD_WRAP_HALF_16BIT = WORLD_WRAP_16BIT >>> 1; // 32768
 
+    private static final float YAW_SPEED_DEG = 90f;
+    private static final float MOVE_SPEED = 3200f;
+
     private boolean wDown, aDown, sDown, dDown;
-    private final float yawSpeedDeg = 90f;
-    private final float moveSpeed = 3200f;
+    private boolean rstickFwd, rstickBck, lstickFwd, lstickBck;
     private float headingDeg = 0f;
 
     private SpriteBatch batch;
@@ -71,10 +76,10 @@ public class BattleZone implements ApplicationListener, InputProcessor {
     private final GameContext context = new GameContext();
     private int nmiCount = 0;
 
-    //private Missile projectile;
     private Tank tank;
     private Missile missile;
     private Projectile projectile;
+    private Title title;
 
     private final Radar radarScreen = new Radar();
     private EngineSound engine;
@@ -100,12 +105,13 @@ public class BattleZone implements ApplicationListener, InputProcessor {
 
         cam = new PerspectiveCamera(67, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         cam.near = 1f;
-        cam.far = 60000f;
+        cam.far = 72000f;
         cam.update();
 
         sr = new ShapeRenderer();
 
         Gdx.input.setInputProcessor(this);
+        Controllers.addListener(this);
 
         environment = new Environment();
         this.environment.set(new ColorAttribute(ColorAttribute.AmbientLight, 0.05f, 0.05f, 0.05f, 1f));
@@ -116,15 +122,20 @@ public class BattleZone implements ApplicationListener, InputProcessor {
         GameModelInstance rm = Models.buildWireframeInstance(Models.Mesh.RADAR1.wf(), Color.RED, 1, -1f, 3f, 0.5f, 3f);
         GameModelInstance mm = Models.buildWireframeInstance(Models.Mesh.MISSILE.wf(), Color.WHITE, 1, -1f, 3f, 0.5f, 3f);
 
+        GameModelInstance logoba = Models.buildWireframeInstance(Models.Mesh.LOGO_BA.wf(), Color.GREEN, 1, -1f, 3f, 0.5f, 3f);
+        GameModelInstance logottle = Models.buildWireframeInstance(Models.Mesh.LOGO_TTLE.wf(), Color.GREEN, 1, -1f, 3f, 0.5f, 3f);
+        GameModelInstance logozone = Models.buildWireframeInstance(Models.Mesh.LOGO_ZONE.wf(), Color.GREEN, 1, -1f, 3f, 0.5f, 3f);
+
         this.tank = new Tank(tm, rm);
         this.missile = new Missile(mm);
+        this.title = new Title(logoba, logottle, logozone);
 
         context.collisionChecker = this::collidesAnyModelXZ;
 
-        randomSpawn(cam.position, context);
+        //randomSpawn(cam.position, context);
         randomSpawn(this.tank.pos, context);
 
-        headingDeg = rand8();//0 is facing the moon
+        headingDeg = 0;//0 is facing the moon
 
         GameModelInstance projectileInstance = Models.buildWireframeInstance(Models.Mesh.PROJECTILE.wf(), Color.YELLOW, 1, -1f, 0f, 0.5f, 0f);
         projectile = new Projectile(projectileInstance);
@@ -144,11 +155,11 @@ public class BattleZone implements ApplicationListener, InputProcessor {
         float dt = Gdx.graphics.getDeltaTime();
 
         float yaw = 0f;
-        if (aDown) {
-            yaw += yawSpeedDeg * dt;
+        if (aDown || rstickFwd || lstickBck) {
+            yaw += YAW_SPEED_DEG * dt;
         }
-        if (dDown) {
-            yaw -= yawSpeedDeg * dt;
+        if (dDown || lstickFwd || rstickBck) {
+            yaw -= YAW_SPEED_DEG * dt;
         }
         if (yaw != 0f) {
             cam.rotate(Vector3.Y, yaw);
@@ -156,11 +167,11 @@ public class BattleZone implements ApplicationListener, InputProcessor {
         }
 
         float move = 0f;
-        if (wDown) {
-            move += moveSpeed * dt;
+        if (wDown || (rstickFwd && lstickFwd)) {
+            move += MOVE_SPEED * dt;
         }
-        if (sDown) {
-            move -= moveSpeed * dt;
+        if (sDown || (rstickBck && lstickBck)) {
+            move -= MOVE_SPEED * dt;
         }
         if (move != 0f) {
             TMP1.set(cam.direction.x, 0f, cam.direction.z).nor().scl(move);
@@ -195,6 +206,10 @@ public class BattleZone implements ApplicationListener, InputProcessor {
         tank.render(modelBatch, environment);
         missile.render(modelBatch, environment);
 
+        if (title != null) {
+            title.render(modelBatch, environment);
+        }
+
         modelBatch.end();
 
         backGroundCam.setToOrtho(false, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
@@ -203,8 +218,8 @@ public class BattleZone implements ApplicationListener, InputProcessor {
         sr.setProjectionMatrix(backGroundCam.combined);
 
         context.hdFromCam = (MathUtils.atan2(cam.direction.x, cam.direction.z) * MathUtils.radiansToDegrees + 360f) % 360f;
-        float  hd = (headingDeg % 360f + 360f) % 360f;
-        
+        float hd = (headingDeg % 360f + 360f) % 360f;
+
         background.drawBackground2D(sr, hd);
 
         drawHUD(dt);
@@ -216,6 +231,8 @@ public class BattleZone implements ApplicationListener, InputProcessor {
 
     @Override
     public boolean keyDown(int keycode) {
+        title = null;
+        
         switch (keycode) {
             case Input.Keys.W:
                 wDown = true;
@@ -326,6 +343,65 @@ public class BattleZone implements ApplicationListener, InputProcessor {
 
     @Override
     public boolean touchCancelled(int i, int i1, int i2, int i3) {
+        return false;
+    }
+
+    @Override
+    public void connected(Controller cntrlr) {
+    }
+
+    @Override
+    public void disconnected(Controller cntrlr) {
+    }
+
+    @Override
+    public boolean buttonDown(Controller c, int buttonCode) {
+        //fire with any button
+        return false;
+    }
+
+    @Override
+    public boolean buttonUp(Controller c, int buttonCode) {
+        return false;
+    }
+
+    @Override
+    public boolean axisMoved(Controller c, int axisCode, float value) {
+
+        if (axisCode == 1) {
+            if (value > 0.5f) {
+                //System.out.println("left tread back");
+                lstickBck = true;
+            } else if (value < -0.5f) {
+                //System.out.println("left tread forward");
+                lstickFwd = true;
+            } else {
+                //System.out.println("left tread stop");
+                lstickFwd = false;
+                lstickBck = false;
+            }
+        }
+
+        if (axisCode == 3) {
+            if (value > 0.5f) {
+                //System.out.println("right tread back");
+                rstickBck = true;
+            } else if (value < -0.5f) {
+                //System.out.println("right tread forward");
+                rstickFwd = true;
+            } else {
+                //System.out.println("right tread stop");
+                rstickBck = false;
+                rstickFwd = false;
+            }
+        }
+
+        if (rstickFwd || rstickBck || lstickFwd || lstickBck) {
+            engine.setThrottle(1f);
+        } else {
+            engine.setThrottle(0f);
+        }
+
         return false;
     }
 

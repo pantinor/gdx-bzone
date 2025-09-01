@@ -58,7 +58,6 @@
             <artifactId>gdx-freetype</artifactId>
             <version>1.13.5</version>
         </dependency>
-        
         <dependency>
             <groupId>com.badlogicgames.gdx</groupId>
             <artifactId>gdx-freetype-platform</artifactId>
@@ -67,11 +66,17 @@
         </dependency>
 
         <dependency>
-            <groupId>com.badlogicgames.gdx</groupId>
-            <artifactId>gdx-tools</artifactId>
-            <version>1.13.5</version>
+            <groupId>com.badlogicgames.gdx-controllers</groupId>
+            <artifactId>gdx-controllers-desktop</artifactId>
+            <version>2.2.4</version>
+        </dependency>
+        <dependency>
+            <groupId>com.badlogicgames.gdx-controllers</groupId>
+            <artifactId>gdx-controllers-core</artifactId>
+            <version>2.2.4</version>
         </dependency>
 
+        
         <dependency>
             <groupId>org.testng</groupId>
             <artifactId>testng</artifactId>

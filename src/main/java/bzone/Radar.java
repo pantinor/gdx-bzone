@@ -53,6 +53,10 @@ public class Radar {
         float ey = RADAR_CY + cs * RADAR_RADIUS;
         sr.line(RADAR_CX, RADAR_CY, ex, ey);
 
+        sr.end();
+        
+        sr.begin(ShapeRenderer.ShapeType.Filled);
+
         if (atTop(sweepRel8)) {
             if (!topLatched) {
                 Sounds.play(Sounds.Effect.RADAR);
