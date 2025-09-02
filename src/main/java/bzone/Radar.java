@@ -24,7 +24,7 @@ public class Radar {
     private boolean topLatched = false;       // prevents repeats while we're inside the window
     private float sweep256 = 0f;
 
-    public void drawRadar2D(PerspectiveCamera cam, ShapeRenderer sr, Tank tank, Missile missile, List<GameModelInstance> obstacles, float dt) {
+    public void drawRadar2D(PerspectiveCamera cam, ShapeRenderer sr, BaseTank tank, Missile missile, List<GameModelInstance> obstacles, float dt) {
 
         if (dt > 0.1f) {
             dt = 0.1f;

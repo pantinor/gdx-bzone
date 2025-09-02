@@ -35,7 +35,7 @@ public class Missile {
     private int zigFlipsDone = 0;
     private static final int MAX_ZIGZAGS = 2;
 
-    private final GameModelInstance inst;
+    public final GameModelInstance inst;
 
     public final Vector3 pos = new Vector3();
 

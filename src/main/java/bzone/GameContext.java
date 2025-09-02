@@ -12,12 +12,17 @@ public class GameContext {
     public Tank.TankType tankType = Tank.TankType.SLOW;
 
     public CollisionChecker collisionChecker = (x, z) -> false;
-    public Shooter shooter = () -> {
-    };
+    public HitChecker hitChecker = (x, z) -> false;
+    public Shooter shooter = () -> {/**/};
 
     public interface CollisionChecker {
 
         boolean collides(float x, float z);
+    }
+
+    public interface HitChecker {
+
+        boolean hits(float x, float z);
     }
 
     public interface Shooter {

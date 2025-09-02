@@ -43,7 +43,7 @@ public class Projectile {
 
         x = px + dx * spawnStep;
         z = pz + dz * spawnStep;
-        
+
         timeToLive = TTL_SECONDS;
         active = true;
 
@@ -51,7 +51,7 @@ public class Projectile {
         Sounds.play(Sounds.Effect.FIRE);
     }
 
-    public void spawnFromPlayer(GameContext ctx, List<GameModelInstance> obstacles) {
+    public void spawnFromPlayer(GameContext ctx) {
         if (active) {
             return;
         }
@@ -59,7 +59,7 @@ public class Projectile {
         spawn(wrap16f(ctx.playerX), wrap16f(ctx.playerZ), yawRad);
     }
 
-    public void spawnFromTank(Tank tank, GameContext ctx, List<GameModelInstance> obstacles) {
+    public void spawnFromTank(BaseTank tank, GameContext ctx) {
         if (active) {
             return;
         }
@@ -96,6 +96,11 @@ public class Projectile {
             return;
         }
 
+        if (ctx.hitChecker.hits(x, z)) {
+            kill(Sounds.Effect.EXPLOSION);
+            return;
+        }
+
         if (!fromPlayer && hitsPlayer(ctx, x, z, PLAYER_HIT_RADIUS)) {
             kill(Sounds.Effect.EXPLOSION);
             return;
@@ -117,6 +122,8 @@ public class Projectile {
 
     private void kill(Sounds.Effect sfx) {
         active = false;
-        Sounds.play(sfx);
+        if (sfx != null) {
+            Sounds.play(sfx);
+        }
     }
 }

@@ -75,7 +75,7 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
     private final GameContext context = new GameContext();
     private int nmiCount = 0;
 
-    private Tank tank;
+    private BaseTank tank;
     private Missile missile;
     private Projectile tankProjectile;
     private Projectile playerProjectile;
@@ -129,7 +129,8 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
         this.tank = new Tank(tm, rm);
         this.missile = new Missile(mm);
 
-        context.collisionChecker = this::collidesAnyModelXZ;
+        context.collisionChecker = this::hitsAnyObstacles;
+        context.hitChecker = this::hitsEnemy;
 
         randomSpawn(cam.position, context);
         randomSpawn(this.tank.pos, context);
@@ -141,7 +142,7 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
 
         GameModelInstance tankProj = Models.buildWireframeInstance(Models.Mesh.PROJECTILE.wf(), Color.YELLOW, 1, -1f, 0f, 0.5f, 0f);
         tankProjectile = new Projectile(tankProj);
-        context.shooter = () -> tankProjectile.spawnFromTank(this.tank, context, obstacles);
+        context.shooter = () -> tankProjectile.spawnFromTank(this.tank, context);
 
         GameModelInstance playerProj = Models.buildWireframeInstance(Models.Mesh.PROJECTILE.wf(), Color.YELLOW, 1, -1f, 0f, 0.5f, 0f);
         playerProjectile = new Projectile(playerProj);
@@ -195,7 +196,7 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
         tankProjectile.update(context, obstacles, dt, false);
         playerProjectile.update(context, obstacles, dt, true);
         missile.update(context, dt);
-        engine.update(dt);
+        //engine.update(dt);
 
         Gdx.gl.glViewport(0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         Gdx.gl.glClear(GL30.GL_COLOR_BUFFER_BIT | GL30.GL_DEPTH_BUFFER_BIT);
@@ -270,7 +271,7 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
                 missile.spawn(context);
                 return true;
             case Input.Keys.SPACE:
-                playerProjectile.spawnFromPlayer(context, obstacles);
+                playerProjectile.spawnFromPlayer(context);
                 return true;
             case Input.Keys.NUM_6:
                 return true;
@@ -365,7 +366,7 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
 
     @Override
     public boolean buttonDown(Controller c, int buttonCode) {
-        //fire with any button
+        playerProjectile.spawnFromPlayer(context);
         return false;
     }
 
@@ -379,13 +380,10 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
 
         if (axisCode == 1) {
             if (value > 0.5f) {
-                //System.out.println("left tread back");
                 lstickBck = true;
             } else if (value < -0.5f) {
-                //System.out.println("left tread forward");
                 lstickFwd = true;
             } else {
-                //System.out.println("left tread stop");
                 lstickFwd = false;
                 lstickBck = false;
             }
@@ -393,13 +391,10 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
 
         if (axisCode == 3) {
             if (value > 0.5f) {
-                //System.out.println("right tread back");
                 rstickBck = true;
             } else if (value < -0.5f) {
-                //System.out.println("right tread forward");
                 rstickFwd = true;
             } else {
-                //System.out.println("right tread stop");
                 rstickBck = false;
                 rstickFwd = false;
             }
@@ -494,15 +489,32 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
         return Math.max(rx, rz);
     }
 
-    private boolean collidesAnyModelXZ(float x, float z) {
+    private boolean hitsAnyObstacles(float x, float z) {
         for (GameModelInstance inst : obstacles) {
-            Vector3 wrapped = nearestWrappedPos(inst, x, z, TMP1);
-            float dx = wrapped.x - x;
-            float dz = wrapped.z - z;
-            float r = obstacleRadiusFromBounds(inst);
-            if (dx * dx + dz * dz <= r * r) {
+            boolean collides = touches(inst, x, z);
+            if (collides) {
                 return true;
             }
+        }
+        return false;
+    }
+
+    private boolean touches(GameModelInstance inst, float x, float z) {
+        Vector3 wrapped = nearestWrappedPos(inst, x, z, TMP1);
+        float dx = wrapped.x - x;
+        float dz = wrapped.z - z;
+        float r = obstacleRadiusFromBounds(inst);
+        return dx * dx + dz * dz <= r * r;
+    }
+
+    private boolean hitsEnemy(float x, float z) {
+        if (touches(this.tank.inst, x, z)) {
+            this.tank.alive = false;
+            return true;
+        }
+        if (touches(this.missile.inst, x, z)) {
+            this.missile.active = false;
+            return true;
         }
         return false;
     }
