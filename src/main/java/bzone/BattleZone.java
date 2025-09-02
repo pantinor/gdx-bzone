@@ -18,7 +18,6 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator;
 import com.badlogic.gdx.graphics.g3d.Environment;
 import com.badlogic.gdx.graphics.g3d.ModelBatch;
-import com.badlogic.gdx.graphics.g3d.ModelInstance;
 import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.MathUtils;
@@ -78,7 +77,8 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
 
     private Tank tank;
     private Missile missile;
-    private Projectile projectile;
+    private Projectile tankProjectile;
+    private Projectile playerProjectile;
     private Title title;
 
     private final Radar radarScreen = new Radar();
@@ -128,18 +128,23 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
 
         this.tank = new Tank(tm, rm);
         this.missile = new Missile(mm);
-        this.title = new Title(logoba, logottle, logozone);
 
         context.collisionChecker = this::collidesAnyModelXZ;
 
-        //randomSpawn(cam.position, context);
+        randomSpawn(cam.position, context);
         randomSpawn(this.tank.pos, context);
 
         headingDeg = 0;//0 is facing the moon
 
-        GameModelInstance projectileInstance = Models.buildWireframeInstance(Models.Mesh.PROJECTILE.wf(), Color.YELLOW, 1, -1f, 0f, 0.5f, 0f);
-        projectile = new Projectile(projectileInstance);
-        context.shooter = () -> projectile.spawnFromEnemy(this.tank, context, obstacles);
+        this.title = new Title(logoba, logottle, logozone);
+        this.title.setPosition(cam.position.x, cam.position.z);
+
+        GameModelInstance tankProj = Models.buildWireframeInstance(Models.Mesh.PROJECTILE.wf(), Color.YELLOW, 1, -1f, 0f, 0.5f, 0f);
+        tankProjectile = new Projectile(tankProj);
+        context.shooter = () -> tankProjectile.spawnFromTank(this.tank, context, obstacles);
+
+        GameModelInstance playerProj = Models.buildWireframeInstance(Models.Mesh.PROJECTILE.wf(), Color.YELLOW, 1, -1f, 0f, 0.5f, 0f);
+        playerProjectile = new Projectile(playerProj);
 
         loadMapObstacles();
 
@@ -186,9 +191,9 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
         context.playerZ = cam.position.z;
         context.nmiCount = ++this.nmiCount;
 
-        projectile.update(context, obstacles, dt);
         tank.update(context, dt);
-        context.projectileBusy = projectile.active;
+        tankProjectile.update(context, obstacles, dt, false);
+        playerProjectile.update(context, obstacles, dt, true);
         missile.update(context, dt);
         engine.update(dt);
 
@@ -199,8 +204,11 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
 
         drawObstacles(modelBatch);
 
-        if (context.projectileBusy) {
-            modelBatch.render(projectile.inst, environment);
+        if (tankProjectile.active) {
+            modelBatch.render(tankProjectile.inst, environment);
+        }
+        if (playerProjectile.active) {
+            modelBatch.render(playerProjectile.inst, environment);
         }
 
         tank.render(modelBatch, environment);
@@ -232,7 +240,7 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
     @Override
     public boolean keyDown(int keycode) {
         title = null;
-        
+
         switch (keycode) {
             case Input.Keys.W:
                 wDown = true;
@@ -261,7 +269,8 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
             case Input.Keys.NUM_4:
                 missile.spawn(context);
                 return true;
-            case Input.Keys.NUM_5:
+            case Input.Keys.SPACE:
+                playerProjectile.spawnFromPlayer(context, obstacles);
                 return true;
             case Input.Keys.NUM_6:
                 return true;
@@ -473,7 +482,6 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
             if (!cam.frustum.pointInFrustum(wrapped)) {
                 continue;
             }
-
             MAT1.set(inst.transform).setTranslation(wrapped);
             inst.transform.set(MAT1);
             batch.render(inst, environment);

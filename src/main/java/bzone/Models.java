@@ -84,7 +84,7 @@ public class Models {
         SAND_SLED("W1 V 17 363 -480 940 212 -480 944 -363 -480 940 -212 -480 944 354 -480 -918 207 -480 -921 -354 -480 -918 -207 -480 -921 286 -400 -798 -286 -400 -798 -281 -400 198 281 -400 198 0 40 -600 0 -144 -280 0 -176 520 81 -224 -128 -81 -224 -128 E 22 0 1 2 3 4 5 6 7 0 4 1 5 2 6 3 7 8 9 9 10 10 11 11 8 8 12 9 12 10 12 11 12 13 14 13 15 13 16 15 16 14 15 14 16 P 0"),
         LASER_TANK("W1 V 20 477 -480 643 -477 -480 643 -477 -480 -643 477 -480 -643 596 -240 803 -596 -240 803 -596 -240 -803 596 -240 -803 404 -120 315 -404 -120 315 -396 -120 -482 396 -120 -482 199 160 119 -199 160 119 -201 160 -355 201 160 -355 0 24 1000 0 80 176 128 -32 240 -128 -32 240 E 34 0 1 1 2 2 3 3 0 4 5 5 6 6 7 7 4 8 9 9 10 10 11 11 8 12 13 13 14 14 15 15 12 0 4 1 5 2 6 3 7 4 8 5 9 6 10 7 11 8 12 9 13 10 14 11 15 16 17 16 18 16 19 17 18 18 19 19 17 P 0"), //
         ;
-        
+
         private final Wireframe wireframe;
 
         Mesh(String text) {
@@ -332,4 +332,94 @@ public class Models {
 
         return gridInstance;
     }
+
+    // inside class Models
+    public static final class EdgeBoxes {
+
+        public final Model boxModel;                 // dispose this when done
+        public final List<ModelInstance> instances;  // all edge markers
+
+        EdgeBoxes(Model m, List<ModelInstance> list) {
+            this.boxModel = m;
+            this.instances = list;
+        }
+    }
+
+    /**
+     * Build small colored boxes spaced along the world torus seams: x =
+     * worldMin, x = worldMax, z = worldMin, z = worldMax.
+     *
+     * @param worldMin usually 0
+     * @param worldMax e.g., 65536
+     * @param spacing distance between boxes along the edges (e.g., 10)
+     * @param y height for the box centers (e.g., 0.5f)
+     * @param boxSize cube size (edge length), e.g., 4
+     * @param color box color
+     */
+    public static EdgeBoxes buildEdgeBoxes(
+            float worldMin, float worldMax,
+            float spacing, float y, float boxSize,
+            Color color
+    ) {
+        float worldSize = Math.max(0f, worldMax - worldMin);
+        if (spacing <= 0f) {
+            spacing = 10f;
+        }
+
+        // Build a single colored box model (unlit: Position | ColorUnpacked)
+        ModelBuilder mb = new ModelBuilder();
+        mb.begin();
+        Material mat = new Material(); // color per-vertex via ColorUnpacked
+        MeshPartBuilder part = mb.part(
+                "box",
+                GL20.GL_TRIANGLES,
+                VertexAttributes.Usage.Position | VertexAttributes.Usage.ColorUnpacked,
+                mat
+        );
+        part.setColor(color);
+        // centered at origin; we’ll place with transforms
+        part.box(0f, 0f, 0f, boxSize, boxSize, boxSize);
+        Model boxModel = mb.end();
+
+        List<ModelInstance> out = new ArrayList<>();
+
+        // Helper to add an instance at (x,z)
+        java.util.function.BiConsumer<Float, Float> add = (x, z) -> {
+            ModelInstance mi = new ModelInstance(boxModel);
+            mi.transform.setToTranslation(x, y, z);
+            out.add(mi);
+        };
+
+        // Robust stepping that includes both ends (min and max) without double-adding corners
+        int steps = (int) Math.floor(worldSize / spacing);
+        float remainder = worldSize - steps * spacing;
+        float step = spacing + (remainder / Math.max(1, steps)); // spreads residual so we land near max
+
+        // z-min edge: (x from min..max, z = min)
+        float x = worldMin;
+        for (int i = 0; i <= steps; i++, x = Math.min(worldMax, x + step)) {
+            add.accept(x, worldMin);
+        }
+
+        // z-max edge: (x from min..max, z = max), skip corners to avoid duplicates
+        x = worldMin + step;
+        for (int i = 1; i < steps; i++, x = Math.min(worldMax, x + step)) {
+            add.accept(x, worldMax);
+        }
+
+        // x-min edge: (z from min..max, x = min), skip corners
+        float z = worldMin + step;
+        for (int i = 1; i < steps; i++, z = Math.min(worldMax, z + step)) {
+            add.accept(worldMin, z);
+        }
+
+        // x-max edge: (z from min..max, x = max), skip corners
+        z = worldMin + step;
+        for (int i = 1; i < steps; i++, z = Math.min(worldMax, z + step)) {
+            add.accept(worldMax, z);
+        }
+
+        return new EdgeBoxes(boxModel, out);
+    }
+
 }

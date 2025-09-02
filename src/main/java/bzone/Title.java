@@ -20,6 +20,11 @@ public class Title {
         this.ttle = ttle;
         this.zone = zone;
     }
+    
+    public void setPosition(float x, float z) {
+        pos.x = x;
+        pos.z = z;
+    }
 
     public void render(ModelBatch modelBatch, Environment environment) {
 

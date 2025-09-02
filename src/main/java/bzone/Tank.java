@@ -197,9 +197,6 @@ public class Tank {
         if (diff >= 2) {
             return;
         }
-        if (ctx.projectileBusy) {
-            return;
-        }
         ctx.shooter.shoot();
     }
 

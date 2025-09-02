@@ -10,15 +10,16 @@ public class Sounds {
         EXPLOSION("explosion.ogg", false),
         FIRE("fire.ogg", false),
         BUMP("bump.ogg", false),
+        ERROR("error.ogg", false),
         SPAWN("spawn.ogg", false),
-        SAUCER_ACTIVE("saucer.ogg", true),
-        SAUCER_HIT("saucer-hit.ogg", true),
+        SAUCER_ACTIVE("saucer.ogg", false),
+        SAUCER_HIT("saucer-hit.ogg", false),
         MISSILE_MAX("maximize.ogg", false),
         MISSILE_MIN("minimize.ogg", false),
         RADAR("radar.ogg", false);
 
-        private Sound sound;
-        private boolean looping;
+        private final Sound sound;
+        private final boolean looping;
 
         private Effect(String file, boolean looping) {
             this.sound = Gdx.audio.newSound(Gdx.files.internal("assets/audio/" + file));
