@@ -25,6 +25,7 @@ import com.badlogic.gdx.math.Vector3;
 import java.util.ArrayList;
 import java.util.List;
 import com.badlogic.gdx.math.Matrix4;
+import com.badlogic.gdx.utils.Timer;
 import java.util.concurrent.ThreadLocalRandom;
 
 public class BattleZone implements ApplicationListener, InputProcessor, ControllerListener {
@@ -56,6 +57,11 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
      */
     public static final int WORLD_WRAP_HALF_16BIT = WORLD_WRAP_16BIT >>> 1; // 32768
 
+    private static final int[][] LIFE_ICON_STROKES = {
+        {0, 0, -6, 6, 3, 9, 6, 15, 42, 6, 36, 0, 0, 0},
+        {18, 12, 39, 12, 39, 9, 30, 9}
+    };
+
     private static final float YAW_SPEED_DEG = 90f;
     private static final float MOVE_SPEED = 3200f;
 
@@ -79,6 +85,8 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
     private Missile missile;
     private Projectile tankProjectile;
     private Projectile playerProjectile;
+    private TankExplosion explosion;
+    private final Spatter spatter = new Spatter(1, 0, 0);
     private Title title;
 
     private final Radar radarScreen = new Radar();
@@ -118,8 +126,8 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
 
         modelBatch = new ModelBatch();
 
-        GameModelInstance tm = Models.buildWireframeInstance(Models.Mesh.SLOW_TANK.wf(), Color.RED, 1, -1f, 3f, 0.5f, 3f);
-        GameModelInstance rm = Models.buildWireframeInstance(Models.Mesh.RADAR1.wf(), Color.RED, 1, -1f, 3f, 0.5f, 3f);
+        GameModelInstance tm = Models.buildWireframeInstance(Models.Mesh.SLOW_TANK.wf(), Color.GREEN, 1, -1f, 3f, 0.5f, 3f);
+        GameModelInstance rm = Models.buildWireframeInstance(Models.Mesh.RADAR1.wf(), Color.GREEN, 1, -1f, 3f, 0.5f, 3f);
         GameModelInstance mm = Models.buildWireframeInstance(Models.Mesh.MISSILE.wf(), Color.WHITE, 1, -1f, 3f, 0.5f, 3f);
 
         GameModelInstance logoba = Models.buildWireframeInstance(Models.Mesh.LOGO_BA.wf(), Color.GREEN, 1, -1f, 3f, 0.5f, 3f);
@@ -128,9 +136,12 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
 
         this.tank = new Tank(tm, rm);
         this.missile = new Missile(mm);
+        this.explosion = new TankExplosion(Color.GREEN);
 
         context.collisionChecker = this::hitsAnyObstacles;
         context.hitChecker = this::hitsEnemy;
+        context.tankSpawn = this::tankSpawn;
+        context.playerSpawn = this::playerSpawn;
 
         randomSpawn(cam.position, context);
         randomSpawn(this.tank.pos, context);
@@ -196,6 +207,8 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
         tankProjectile.update(context, obstacles, dt, false);
         playerProjectile.update(context, obstacles, dt, true);
         missile.update(context, dt);
+        explosion.update(dt, context.tankSpawn);
+        spatter.update(dt);
         //engine.update(dt);
 
         Gdx.gl.glViewport(0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
@@ -214,12 +227,16 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
 
         tank.render(modelBatch, environment);
         missile.render(modelBatch, environment);
+        explosion.render(modelBatch, environment);
 
         if (title != null) {
             title.render(modelBatch, environment);
         }
 
         modelBatch.end();
+
+        sr.setProjectionMatrix(cam.combined);
+        spatter.render(sr);
 
         backGroundCam.setToOrtho(false, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         backGroundCam.update();
@@ -231,11 +248,14 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
 
         background.drawBackground2D(sr, hd);
 
+        Gdx.gl.glEnable(GL30.GL_BLEND);
+        Gdx.gl.glBlendFunc(GL30.GL_SRC_ALPHA, GL30.GL_ONE_MINUS_SRC_ALPHA);
+
         drawHUD(dt);
 
-        batch.begin();
-        font.draw(batch, "hd " + hd + " pos = " + cam.position.x + " " + cam.position.z, 100, SCREEN_HEIGHT - 100);
-        batch.end();
+        //batch.begin();
+        //font.draw(batch, "hd " + hd + " pos = " + cam.position.x + " " + cam.position.z, 100, SCREEN_HEIGHT - 100);
+        //batch.end();
     }
 
     @Override
@@ -274,6 +294,7 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
                 playerProjectile.spawnFromPlayer(context);
                 return true;
             case Input.Keys.NUM_6:
+                explosion.spawn(to16(tank.pos.x), to16(tank.pos.z));
                 return true;
             case Input.Keys.NUM_7:
                 return true;
@@ -436,6 +457,26 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
         Gdx.gl.glLineWidth(1);
 
         radarScreen.drawRadar2D(cam, sr, tank, missile, obstacles, dt);
+
+        if (context.lives > 0) {
+            sr.begin(ShapeRenderer.ShapeType.Line);
+            sr.setColor(Color.RED);
+            float ox = 800;
+            float oy = SCREEN_HEIGHT - 50;
+            float scale = 1.3f;
+            for (int life = 0; life < context.lives; life++) {
+                for (int[] s : LIFE_ICON_STROKES) {
+                    for (int i = 0; i + 3 < s.length; i += 2) {
+                        float x1 = ox + s[i] * scale, y1 = oy + s[i + 1] * scale;
+                        float x2 = ox + s[i + 2] * scale, y2 = oy + s[i + 3] * scale;
+                        sr.line(x1, y1, x2, y2);
+                    }
+                }
+                ox += 75;
+            }
+            sr.end();
+        }
+
     }
 
     private void loadMapObstacles() {
@@ -493,6 +534,7 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
         for (GameModelInstance inst : obstacles) {
             boolean collides = touches(inst, x, z);
             if (collides) {
+                spatter.spawn(to16(x), to16(z));
                 return true;
             }
         }
@@ -508,15 +550,53 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
     }
 
     private boolean hitsEnemy(float x, float z) {
-        if (touches(this.tank.inst, x, z)) {
+        if (this.tank.alive && touches(this.tank.inst, x, z)) {
             this.tank.alive = false;
+            explosion.spawn(to16(tank.pos.x), to16(tank.pos.z));
+            spatter.spawn(to16(x), to16(z));
+            randomSpawn(this.tank.pos, context);
+            tank.applyWrappedTransform(context);
             return true;
         }
-        if (touches(this.missile.inst, x, z)) {
+        if (this.missile.active && touches(this.missile.inst, x, z)) {
             this.missile.active = false;
+            spatter.spawn(to16(x), to16(z));
             return true;
         }
         return false;
+    }
+
+    private void tankSpawn() {
+        this.tank.alive = true;
+        Sounds.play(Sounds.Effect.SPAWN);
+    }
+
+    private void playerSpawn() {
+        context.spawnProtected = 0;
+        context.lives--;
+        Timer.schedule(new Timer.Task() {
+            @Override
+            public void run() {
+                randomSpawn(cam.position, context);
+                Sounds.play(Sounds.Effect.SPAWN);
+            }
+        }, 5);
+    }
+
+    public static Vector3 nearestWrappedPos(GameModelInstance inst, float x, float z, Vector3 out) {
+        float refX16 = to16(x);
+        float refZ16 = to16(z);
+
+        float obX16 = Math.round(inst.getX());
+        float obZ16 = Math.round(inst.getZ());
+
+        float dx16 = wrapDelta16(obX16 - refX16);
+        float dz16 = wrapDelta16(obZ16 - refZ16);
+
+        float wx = x + dx16;
+        float wz = z + dz16;
+
+        return out.set(wx, inst.getY(), wz);
     }
 
     public static float wrap16f(float v) {
@@ -539,22 +619,6 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
 
     public static float to16(float v) {
         return Math.round(v) & 0xFFFF;
-    }
-
-    public static Vector3 nearestWrappedPos(GameModelInstance inst, float refX, float refZ, Vector3 out) {
-        float refX16 = to16(refX);
-        float refZ16 = to16(refZ);
-
-        float obX16 = Math.round(inst.initialPos.x);
-        float obZ16 = Math.round(inst.initialPos.z);
-
-        float dx16 = wrapDelta16(obX16 - refX16);
-        float dz16 = wrapDelta16(obZ16 - refZ16);
-
-        float wx = refX + dx16;
-        float wz = refZ + dz16;
-
-        return out.set(wx, inst.initialPos.y, wz);
     }
 
     private static int rand8() {

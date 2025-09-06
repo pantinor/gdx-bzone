@@ -74,7 +74,7 @@ public class Projectile {
 
         timeToLive -= dtSec;
         if (timeToLive <= 0f) {
-            kill(Sounds.Effect.ERROR);
+            kill(null);
             return;
         }
 
@@ -92,17 +92,18 @@ public class Projectile {
         applyTransform();
 
         if (ctx.collisionChecker.collides(x, z)) {
-            kill(Sounds.Effect.BUMP);
+            kill(null);
             return;
         }
 
-        if (ctx.hitChecker.hits(x, z)) {
+        if (fromPlayer && ctx.hitChecker.hits(x, z)) {
             kill(Sounds.Effect.EXPLOSION);
             return;
         }
 
         if (!fromPlayer && hitsPlayer(ctx, x, z, PLAYER_HIT_RADIUS)) {
             kill(Sounds.Effect.EXPLOSION);
+            ctx.playerSpawn.spawn();
             return;
         }
 

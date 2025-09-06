@@ -120,8 +120,8 @@ public class ModelViewer3D extends ApplicationAdapter {
         modelBatch.begin(cam);
         modelBatch.render(gridInstance, environment);
         modelBatch.render(ba, environment);
-        modelBatch.render(ttle, environment);
-        modelBatch.render(zone, environment);
+        //dwdmodelBatch.render(ttle, environment);
+        //modelBatch.render(zone, environment);
         modelBatch.end();
 
         stage.act(Gdx.graphics.getDeltaTime());

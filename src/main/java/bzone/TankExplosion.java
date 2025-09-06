@@ -1,32 +1,46 @@
 package bzone;
 
+import bzone.Models.Wireframe;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g3d.Environment;
 import com.badlogic.gdx.graphics.g3d.ModelBatch;
-import com.badlogic.gdx.math.MathUtils;
+import com.badlogic.gdx.graphics.g3d.ModelInstance;
 import com.badlogic.gdx.math.Vector3;
 import java.util.ArrayList;
 import java.util.List;
+import bzone.GameContext.TankSpawn;
 
 public class TankExplosion {
 
     private static final int CHUNKS = 6;
-    private static final float GRAVITY_PER_SEC = -12f;
-    private static final float TERMINAL_FALL = -30f;
-    private static final float SPIN_DEG_PER_SEC = 360f;
-    private static final float LIFE_AFTER_GROUND = 0.10f;
+
+    private static final float GRAVITY = -4000f;
+    private static final float INITIAL_SPEED_MIN = 5500f;
+    private static final float INITIAL_SPEED_MAX = 6500f;
+    private static final float DRAG = 0.99f;   // very light air drag (per-second, raised to dt)
+    private static final float FRICTION = 0.60f;   // horizontal energy kept on bounce
+    private static final float RESTITUTION = 0.25f;   // less pogo-sticking
+    private static final float SPIN_DAMP = 0.85f;   // damp spin per bounce
+    private static final float TTL_AFTER_SETTLE = 0.15f;   // disappear quickly once settled
+    private static final float GROUND_Y = 0f;
+
+    private static final float GROUND_EPS = 2f;   // how close to ground counts as contact
+    private static final float STOP_BOUNCE_VY = 22f;  // vertical speed below this stops bouncing
+    private static final float HVEL_EPS = 30f;  // horizontal speed threshold to sleep
+    private static final float SLEEP_VEL_EPS = 12f;  // overall tiny speed to force sleep
 
     public static class Piece {
 
-        final GameModelInstance inst;
         final Vector3 pos = new Vector3();
         final Vector3 vel = new Vector3();
-        final Vector3 axis = new Vector3();
-        float spinDeg;
-        boolean grounded;
-        float groundedTime;
+        final Vector3 axis = new Vector3(1, 0, 0);
+        float spinDeg = 0f; // degrees per second around axis
+        boolean grounded = false;
+        float groundedTime = 0f;
+        float size = 0.2f;
+        final ModelInstance inst;
 
-        Piece(GameModelInstance inst) {
+        Piece(ModelInstance inst) {
             this.inst = inst;
         }
 
@@ -37,14 +51,17 @@ public class TankExplosion {
             spinDeg = 0f;
             grounded = false;
             groundedTime = 0f;
+            size = 0.2f;
             inst.transform.idt();
         }
     }
 
     private final List<Piece> pieces = new ArrayList<>(CHUNKS);
-    private boolean finished = true;
+    private final Vector3 origin = new Vector3();
+    private boolean finished = false;
 
     public TankExplosion(Color color) {
+
         Models.Mesh[] opts = new Models.Mesh[]{
             Models.Mesh.CHUNK0_TANK_10,
             Models.Mesh.CHUNK1_TANK_11,
@@ -56,100 +73,200 @@ public class TankExplosion {
         for (int i = 0; i < CHUNKS; i++) {
             Models.Mesh mesh = opts[i % opts.length];
             GameModelInstance inst = Models.buildWireframeInstance(mesh.wf(), color, 1f, -1f, 0f, 0f, 0f);
-            pieces.add(new Piece(inst));
+            Piece p = new Piece(inst);
+            p.size = computeHeight(mesh);
+            pieces.add(p);
         }
     }
 
-    public boolean isFinished() {
-        return finished;
-    }
+    public void spawn(float x, float z) {
 
-    public void spawn(Tank tank, boolean isSuperTank) {
-
-        float yaw = tank.facing * MathUtils.PI2 / Tank.ANGLE_STEPS;
-
-        TMP_F.set(MathUtils.sin(yaw), 0f, MathUtils.cos(yaw));
-        TMP_R.set(MathUtils.cos(yaw), 0f, -MathUtils.sin(yaw));
-        TMP_U.set(0f, 1f, 0f);
-
+        origin.set(x, 0.5f, z);
         finished = false;
-        for (int i = 0; i < pieces.size(); i++) {
-            Piece p = pieces.get(i);
+
+        for (Piece p : pieces) {
+
+            float originalSize = p.size;
             p.reset();
+            p.size = originalSize;
 
-            float lift = (i % 2 == 0) ? 0.08f : 0.12f;
-            p.pos.set(tank.pos).mulAdd(TMP_U, lift);
+            // Place each piece so its bottom sits above the ground plane
+            float half = p.size * 0.5f;
+            float startY = Math.max(origin.y, GROUND_Y + half + 0.01f);
 
-            float az = (i / (float) CHUNKS) * MathUtils.PI2;
+            // Small spatial jitter (scaled to size but clamped)
+            float jitter = Math.min(half * 0.05f, 80f);
+            float jx = ((float) Math.random() * 2f - 1f) * jitter;
+            float jz = ((float) Math.random() * 2f - 1f) * jitter;
+            float jy = ((float) Math.random() * 2f - 1f) * (jitter * 0.15f);
 
-            TMP_DIR.set(TMP_F).scl(MathUtils.cos(az)).mulAdd(TMP_R, MathUtils.sin(az)).nor();
+            p.pos.set(origin.x + jx, startY + jy, origin.z + jz);
 
-            float radial = 10f + 5f * ((i & 1) == 0 ? 1 : -1);
-            p.vel.set(TMP_DIR).scl(radial);
-            p.vel.y = 18f + (i * 2f);
-
-            p.axis.set(TMP_DIR).crs(TMP_U).nor();
-            if (p.axis.isZero()) {
-                p.axis.set(1, 0, 0);
+            // Aim elevation
+            float az = (float) (Math.random() * Math.PI * 2.0);  // 0..2π
+            float meanDeg = 65f;   // centered near 65°
+            float spreadDeg = 20f;    //  variation
+            float elDeg = meanDeg + (float) ((Math.random() * 2.0 - 1.0) * spreadDeg);
+            // clamp to a sensible range so nothing goes too flat or too vertical
+            if (elDeg < 35f) {
+                elDeg = 35f;
             }
-            p.spinDeg = (isSuperTank ? 90f : 45f) * ((i < 3) ? 1f : -1f);
+            if (elDeg > 80f) {
+                elDeg = 80f;
+            }
+            float el = (float) Math.toRadians(elDeg);
 
-            p.inst.transform.idt().translate(p.pos).rotate(p.axis, p.spinDeg);
+            float cosEl = (float) Math.cos(el);
+            float sinEl = (float) Math.sin(el);
+            float dirX = (float) (Math.cos(az) * cosEl);
+            float dirY = sinEl;
+            float dirZ = (float) (Math.sin(az) * cosEl);
+
+            // Launch speed
+            float speed = INITIAL_SPEED_MIN + (float) Math.random() * (INITIAL_SPEED_MAX - INITIAL_SPEED_MIN);
+            float sizeScale = 1f + Math.min(p.size / 300f, 0.35f); // up to +35% for big chunks
+            speed *= sizeScale;
+
+            // Initial velocity
+            p.vel.set(dirX * speed, dirY * speed, dirZ * speed);
+
+            // Random spin axis + spin rate
+            float ax = (float) (Math.random() * 2f - 1f);
+            float ay = (float) (Math.random() * 2f - 1f);
+            float azz = (float) (Math.random() * 2f - 1f);
+            if (ax == 0 && ay == 0 && azz == 0) {
+                ax = 1f;
+            }
+            p.axis.set(ax, ay, azz).nor();
+
+            float spin = 240f + (float) Math.random() * 600f;
+            if (Math.random() < 0.5f) {
+                spin = -spin;
+            }
+            p.spinDeg = spin;
+
+            p.inst.transform.idt();
+            p.inst.transform.setTranslation(p.pos);
         }
     }
 
-    public void update(float dt) {
+    public void update(float dt, TankSpawn spawn) {
+        boolean looksUninitialized = true;
+        for (Piece p : pieces) {
+            if (!p.pos.isZero() || !p.vel.isZero() || p.spinDeg != 0f || p.groundedTime != 0f) {
+                looksUninitialized = false;
+                break;
+            }
+        }
+        if (looksUninitialized) {
+            finished = true;
+            return;
+        }
         if (finished) {
             return;
         }
 
-        boolean allDone = true;
-        for (int i = 0; i < pieces.size(); i++) {
-            Piece c = pieces.get(i);
+        boolean allGrounded = true;
 
-            if (!c.grounded) {
-                c.vel.y += GRAVITY_PER_SEC * dt;
-                if (c.vel.y < TERMINAL_FALL) {
-                    c.vel.y = TERMINAL_FALL;
+        for (Piece p : pieces) {
+            float half = p.size * 0.5f;
+
+            if (!p.grounded) {
+
+                p.vel.y += GRAVITY * dt;
+
+                float dragFactor = (float) Math.pow(DRAG, dt);
+                p.vel.scl(dragFactor);
+
+                p.pos.mulAdd(p.vel, dt);
+
+                // Ground contact with tolerance
+                if (p.pos.y - half <= GROUND_Y + GROUND_EPS) {
+                    // Clamp to ground plane
+                    p.pos.y = GROUND_Y + half;
+
+                    // Bounce only if coming down
+                    if (p.vel.y < 0f) {
+                        p.vel.y = -p.vel.y * RESTITUTION;
+                    }
+
+                    // Friction & spin damping on impact
+                    p.vel.x *= FRICTION;
+                    p.vel.z *= FRICTION;
+                    p.spinDeg *= SPIN_DAMP;
+
+                    // Sleep condition: small vertical AND small horizontal velocity
+                    float h2 = p.vel.x * p.vel.x + p.vel.z * p.vel.z;
+                    if (Math.abs(p.vel.y) < STOP_BOUNCE_VY && h2 < HVEL_EPS * HVEL_EPS) {
+                        p.vel.setZero();
+                        p.spinDeg = 0f;
+                        p.grounded = true;
+                    }
                 }
-                c.pos.mulAdd(c.vel, dt);
 
-                if (c.pos.y <= 0f) {
-                    c.pos.y = 0f;
-                    c.grounded = true;
-                    c.pos.y = 0f;
-                } else {
-                    allDone = false;
+                // Extra safety: if we're essentially on the ground and barely moving, sleep it
+                if (!p.grounded && (p.pos.y - half) <= GROUND_EPS && p.vel.len2() < SLEEP_VEL_EPS * SLEEP_VEL_EPS) {
+                    p.pos.y = GROUND_Y + half;
+                    p.vel.setZero();
+                    p.spinDeg = 0f;
+                    p.grounded = true;
                 }
 
-                float spinStep = SPIN_DEG_PER_SEC * dt * (i < 3 ? 1f : -1f);
-                c.spinDeg = (c.spinDeg + spinStep) % 360f;
+                if (!p.grounded) {
+                    allGrounded = false;
+                }
             } else {
-                c.groundedTime += dt;
-                if (c.groundedTime < LIFE_AFTER_GROUND) {
-                    allDone = false;
-                }
+                p.groundedTime += dt;
             }
 
-            c.inst.transform.idt()
-                    .translate(c.pos)
-                    .rotate(c.axis, c.spinDeg);
+            if (dt > 0f && p.spinDeg != 0f) {
+                p.inst.transform.rotate(p.axis, p.spinDeg * dt);
+            }
+            p.inst.transform.setTranslation(p.pos);
         }
-        finished = allDone;
+
+        if (allGrounded) {
+            boolean done = true;
+            for (Piece p : pieces) {
+                if (p.groundedTime < TTL_AFTER_SETTLE) {
+                    done = false;
+                    break;
+                }
+            }
+            finished = done;
+
+            if (done && spawn != null) {
+                spawn.spawn();
+            }
+        }
     }
 
     public void render(ModelBatch batch, Environment env) {
-
         if (finished) {
             return;
         }
-
         for (Piece p : pieces) {
             batch.render(p.inst, env);
         }
     }
-    private static final Vector3 TMP_F = new Vector3();
-    private static final Vector3 TMP_R = new Vector3();
-    private static final Vector3 TMP_U = new Vector3();
-    private static final Vector3 TMP_DIR = new Vector3();
+
+    private static float computeHeight(Models.Mesh mesh) {
+        Wireframe wf = mesh.wf();
+        float minY = Float.POSITIVE_INFINITY;
+        float maxY = Float.NEGATIVE_INFINITY;
+        for (Wireframe.Vertex v : wf.getVertices()) {
+            if (v.y < minY) {
+                minY = v.y;
+            }
+            if (v.y > maxY) {
+                maxY = v.y;
+            }
+        }
+        float h = (maxY > minY) ? (maxY - minY) : 1f;
+        if (h < 1f) {
+            h = 1f;
+        }
+        return h;
+    }
+
 }

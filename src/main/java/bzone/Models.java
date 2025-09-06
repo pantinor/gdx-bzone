@@ -316,9 +316,10 @@ public class Models {
             b.line(x, 0f, -extent, x, 0f, +extent);
         }
 
-        // Bold axes (X: red-ish, Z: blue-ish)
+        // Bold axes (X: red-ish, Z: blue-ish, Y: green)
         Color xAxis = new Color(0.9f, 0.2f, 0.2f, 1f);
         Color zAxis = new Color(0.2f, 0.4f, 0.9f, 1f);
+        Color yAxis = new Color(0.2f, 0.9f, 0.2f, 1f);
 
         b.setColor(xAxis);
         b.line(-extent, 0f, 0f, +extent, 0f, 0f);
@@ -326,11 +327,12 @@ public class Models {
         b.setColor(zAxis);
         b.line(0f, 0f, -extent, 0f, 0f, +extent);
 
+        // Add Y axis line upward from origin
+        b.setColor(yAxis);
+        b.line(0f, 0f, 0f, 0f, extent, 0f);
+
         Model gridModel = mb.end();
-
-        ModelInstance gridInstance = new ModelInstance(gridModel, new Matrix4().idt());
-
-        return gridInstance;
+        return new ModelInstance(gridModel, new Matrix4().idt());
     }
 
     // inside class Models

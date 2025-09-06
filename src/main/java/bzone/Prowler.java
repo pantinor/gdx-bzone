@@ -89,10 +89,10 @@ public class Prowler extends BaseTank {
     }
 
     private void tryFireOnFlank(GameContext ctx) {
-        if (ctx.spawnProtected < 32) {
+        if (ctx.spawnProtected < 600) {
             return;
         }
-        if (ctx.playerScore < 2000 && ctx.spawnProtected != 255) {
+        if (ctx.playerScore < 2000 && ctx.spawnProtected != 600) {
             return;
         }
 

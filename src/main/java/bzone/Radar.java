@@ -31,7 +31,7 @@ public class Radar {
         }
 
         sr.begin(ShapeRenderer.ShapeType.Filled);
-        sr.setColor(0.05f, 0.05f, 0.05f, 0.35f);
+        sr.setColor(0.05f, 0.05f, 0.05f, 0.75f);
         sr.circle(RADAR_CX, RADAR_CY, RADAR_RADIUS);
         sr.end();
 

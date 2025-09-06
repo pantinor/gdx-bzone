@@ -31,7 +31,7 @@ public abstract class BaseTank {
     protected final GameModelInstance inst;
     protected final GameModelInstance extra;
 
-    protected final Vector3 pos = new Vector3();
+    public final Vector3 pos = new Vector3();
     protected final Vector3 savedPos = new Vector3();
 
     public boolean alive = true;
@@ -53,8 +53,8 @@ public abstract class BaseTank {
             return;
         }
 
-        if (ctx.spawnProtected != 255) {
-            ctx.spawnProtected = Math.min(255, ctx.spawnProtected + 1);
+        if (ctx.spawnProtected != 600) {
+            ctx.spawnProtected = Math.min(600, ctx.spawnProtected + 1);
         }
 
         updateTank(ctx, dt);
@@ -84,7 +84,7 @@ public abstract class BaseTank {
         pos.set(savedPos);
     }
 
-    protected void applyWrappedTransform(GameContext ctx) {
+    public void applyWrappedTransform(GameContext ctx) {
 
         float refX16 = to16(ctx.playerX);
         float refZ16 = to16(ctx.playerZ);
@@ -109,10 +109,10 @@ public abstract class BaseTank {
     }
 
     protected void tryShootPlayer(GameContext ctx) {
-        if (ctx.spawnProtected < 32) {
+        if (ctx.spawnProtected < 600) {
             return;
         }
-        if (ctx.playerScore < 2000 && ctx.spawnProtected != 255) {
+        if (ctx.playerScore < 2000 && ctx.spawnProtected != 600) {
             return;
         }
         int diff = Math.abs(signed8(calcAngleToPlayer(ctx) - this.facing));

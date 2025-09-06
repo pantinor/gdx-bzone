@@ -16,4 +16,16 @@ public class GameModelInstance extends ModelInstance {
         this.transform.setToTranslation(x, y, z);
         this.calculateBoundingBox(localBounds);
     }
+
+    public float getX() {
+        return this.transform.val[12];
+    }
+
+    public float getY() {
+        return this.transform.val[13];
+    }
+
+    public float getZ() {
+        return this.transform.val[14];
+    }
 }
