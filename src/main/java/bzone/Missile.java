@@ -66,20 +66,6 @@ public class Missile {
 
     public void spawn(GameContext ctx) {
 
-        int start = WORLD_WRAP_HALF_16BIT - 4000;
-
-        int angSteps = MathUtils.round((ctx.hdFromCam / 360f) * ANGLE_STEPS) & 0xFF;
-        float rad = angSteps * MathUtils.PI2 / ANGLE_STEPS;
-
-        float offX = MathUtils.sin(rad) * start;
-        float offZ = MathUtils.cos(rad) * start;
-
-        this.pos.set(
-                wrap16f(ctx.playerX + offX),
-                6000f,
-                wrap16f(ctx.playerZ + offZ)
-        );
-
         this.facing = 64;
         this.verticalVelocity = 0f;
         this.falling = (this.pos.y > 0f);

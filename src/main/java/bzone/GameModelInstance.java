@@ -10,10 +10,8 @@ public class GameModelInstance extends ModelInstance {
     public final BoundingBox localBounds = new BoundingBox();
     public final Vector3 initialPos = new Vector3();
 
-    public GameModelInstance(Model model, float x, float y, float z) {
+    public GameModelInstance(Model model) {
         super(model);
-        this.initialPos.set(x, y, z);
-        this.transform.setToTranslation(x, y, z);
         this.calculateBoundingBox(localBounds);
     }
 

@@ -218,7 +218,7 @@ public class Models {
         return wf;
     }
 
-    public static Model buildWireframeModel(Wireframe wf, Color color, float unitScale, float pointSize) {
+    public static Model buildWireframeModel(Wireframe wf, Color color, float unitScale) {
 
         final List<Wireframe.Vertex> verts = wf.getVertices();
 
@@ -241,39 +241,12 @@ public class Models {
             b.line(TMP1, TMP2);
         }
 
-        // Points → tiny crosses (3 axes)
-        if (pointSize > 0f) {
-            float r = pointSize;
-            for (int vi : wf.getPoints()) {
-                if (vi < 0 || vi >= verts.size()) {
-                    continue;
-                }
-                Wireframe.Vertex v = verts.get(vi);
-                float x = v.x * unitScale, y = v.y * unitScale, z = v.z * unitScale;
-
-                // X axis
-                TMP1.set(x - r, y, z);
-                TMP2.set(x + r, y, z);
-                b.line(TMP1, TMP2);
-
-                // Y axis
-                TMP3.set(x, y - r, z);
-                TMP4.set(x, y + r, z);
-                b.line(TMP3, TMP4);
-
-                // Z axis
-                TMP5.set(x, y, z - r);
-                TMP6.set(x, y, z + r);
-                b.line(TMP5, TMP6);
-            }
-        }
-
         return mb.end();
     }
 
-    public static GameModelInstance buildWireframeInstance(Wireframe wf, Color color, float unitScale, float pointSize, float x, float y, float z) {
-        Model model = buildWireframeModel(wf, color, unitScale, pointSize);
-        GameModelInstance instance = new GameModelInstance(model, x, y, z);
+    public static GameModelInstance buildWireframeInstance(Wireframe wf, Color color, float unitScale) {
+        Model model = buildWireframeModel(wf, color, unitScale);
+        GameModelInstance instance = new GameModelInstance(model);
         return instance;
     }
 

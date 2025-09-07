@@ -65,18 +65,18 @@ public class Projectile {
         spawn(wrap16f(tank.pos.x), wrap16f(tank.pos.z), yawRad);
     }
 
-    public void update(GameContext ctx, List<GameModelInstance> obstacles, float dtSec, boolean fromPlayer) {
+    public void update(GameContext ctx, List<GameModelInstance> obstacles, float dt, boolean fromPlayer) {
         if (!active) {
             return;
         }
 
-        timeToLive -= dtSec;
+        timeToLive -= dt;
         if (timeToLive <= 0f) {
             kill(null);
             return;
         }
 
-        float moveDist = PROJECTILE_SPEED_PER_SEC * dtSec;
+        float moveDist = PROJECTILE_SPEED_PER_SEC * dt;
         if (moveDist <= 0f) {
             applyTransform();
             return;
@@ -91,6 +91,7 @@ public class Projectile {
 
         if (ctx.collisionChecker.collides(x, z)) {
             kill(null);
+            ctx.spatterSpawn.spawn(x, z);
             return;
         }
 

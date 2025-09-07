@@ -48,8 +48,6 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
 
     /**
      * Size of the toroidal world in the original 16-bit ROM coordinate space.
-     * Positions wrap modulo this value (i.e., x,z ∈ [0, 65536)) to emulate the
-     * hardware’s unsigned 16-bit addressing of the playfield.
      */
     public static final int WORLD_WRAP_16BIT = 1 << 16; // 65536
 
@@ -81,6 +79,7 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
 
     private BaseTank tank;
     private Missile missile;
+    private Saucer saucer;
     private Projectile tankProjectile;
     private Projectile playerProjectile;
     private TankExplosion explosion;
@@ -125,22 +124,26 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
 
         modelBatch = new ModelBatch();
 
-        GameModelInstance tm = Models.buildWireframeInstance(Models.Mesh.SLOW_TANK.wf(), Color.GREEN, 1, -1f, 3f, 0.5f, 3f);
-        GameModelInstance rm = Models.buildWireframeInstance(Models.Mesh.RADAR.wf(), Color.GREEN, 1, -1f, 3f, 0.5f, 3f);
-        GameModelInstance mm = Models.buildWireframeInstance(Models.Mesh.MISSILE.wf(), Color.GREEN, 1, -1f, 3f, 0.5f, 3f);
+        GameModelInstance tm = Models.buildWireframeInstance(Models.Mesh.SLOW_TANK.wf(), Color.GREEN, 1);
+        GameModelInstance rm = Models.buildWireframeInstance(Models.Mesh.RADAR.wf(), Color.GREEN, 1);
+        GameModelInstance mm = Models.buildWireframeInstance(Models.Mesh.MISSILE.wf(), Color.GREEN, 1);
+        GameModelInstance sm = Models.buildWireframeInstance(Models.Mesh.SAUCER.wf(), Color.GREEN, 1);
 
-        GameModelInstance logoba = Models.buildWireframeInstance(Models.Mesh.LOGO_BA.wf(), Color.RED, 1, -1f, 3f, 0.5f, 3f);
-        GameModelInstance logottle = Models.buildWireframeInstance(Models.Mesh.LOGO_TTLE.wf(), Color.RED, 1, -1f, 3f, 0.5f, 3f);
-        GameModelInstance logozone = Models.buildWireframeInstance(Models.Mesh.LOGO_ZONE.wf(), Color.RED, 1, -1f, 3f, 0.5f, 3f);
+        GameModelInstance logoba = Models.buildWireframeInstance(Models.Mesh.LOGO_BA.wf(), Color.RED, 1);
+        GameModelInstance logottle = Models.buildWireframeInstance(Models.Mesh.LOGO_TTLE.wf(), Color.RED, 1);
+        GameModelInstance logozone = Models.buildWireframeInstance(Models.Mesh.LOGO_ZONE.wf(), Color.RED, 1);
 
         this.tank = new Tank(tm, rm);
         this.missile = new Missile(mm);
+        this.saucer = new Saucer(sm);
+
         this.explosion = new TankExplosion(Color.GREEN);
 
-        context.collisionChecker = this::hitsAnyObstacles;
+        context.collisionChecker = this::collides;
         context.hitChecker = this::hitsEnemy;
         context.tankSpawn = this::tankSpawn;
         context.playerSpawn = this::playerSpawn;
+        context.spatterSpawn = this::spatterSpawn;
 
         randomSpawn(cam.position, context);
         randomSpawn(this.tank.pos, context);
@@ -150,11 +153,11 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
         this.title = new Title(logoba, logottle, logozone);
         this.title.setPosition(cam.position.x, cam.position.z);
 
-        GameModelInstance tankProj = Models.buildWireframeInstance(Models.Mesh.PROJECTILE.wf(), Color.YELLOW, 1, -1f, 0f, 0.5f, 0f);
+        GameModelInstance tankProj = Models.buildWireframeInstance(Models.Mesh.PROJECTILE.wf(), Color.YELLOW, 1);
         tankProjectile = new Projectile(tankProj);
         context.shooter = () -> tankProjectile.spawnFromTank(this.tank, context);
 
-        GameModelInstance playerProj = Models.buildWireframeInstance(Models.Mesh.PROJECTILE.wf(), Color.YELLOW, 1, -1f, 0f, 0.5f, 0f);
+        GameModelInstance playerProj = Models.buildWireframeInstance(Models.Mesh.PROJECTILE.wf(), Color.YELLOW, 1);
         playerProjectile = new Projectile(playerProj);
 
         loadMapObstacles();
@@ -207,6 +210,7 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
         tankProjectile.update(context, obstacles, dt, false);
         playerProjectile.update(context, obstacles, dt, true);
         missile.update(context, dt);
+        saucer.update(context, dt);
         explosion.update(dt, context.tankSpawn);
         spatter.update(dt);
         engine.update(dt);
@@ -227,6 +231,8 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
 
         tank.render(modelBatch, environment);
         missile.render(modelBatch, environment);
+        saucer.render(modelBatch, environment);
+
         explosion.render(modelBatch, environment);
 
         if (title != null) {
@@ -284,12 +290,15 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
                 context.playerScore = 0;
                 return true;
             case Input.Keys.NUM_4:
+                randomSpawnDistantInView(context, this.missile.pos, 6000f);
                 missile.spawn(context);
                 return true;
             case Input.Keys.SPACE:
                 playerProjectile.spawnFromPlayer(context);
                 return true;
             case Input.Keys.NUM_6:
+                randomSpawnDistantInView(context, this.saucer.pos, 0.5f);
+                saucer.spawn();
                 return true;
             case Input.Keys.NUM_7:
                 return true;
@@ -451,7 +460,7 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
         sr.end();
         Gdx.gl.glLineWidth(1);
 
-        radarScreen.drawRadar2D(cam, sr, tank, missile, obstacles, dt);
+        radarScreen.drawRadar2D(cam, sr, tank, missile, saucer, obstacles, dt);
 
         if (context.lives > 0) {
             sr.begin(ShapeRenderer.ShapeType.Line);
@@ -519,7 +528,9 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
             float y = 0.5f;
             float deg = face * (360f / 256f);
 
-            GameModelInstance inst = Models.buildWireframeInstance(Models.Mesh.values()[type].wf(), Color.GREEN, 1f, -1f, x, y, z);
+            GameModelInstance inst = Models.buildWireframeInstance(Models.Mesh.values()[type].wf(), Color.GREEN, 1f);
+            inst.initialPos.set(x, y, z);
+            inst.transform.setToTranslation(x, y, z);
             inst.transform.rotate(Vector3.Y, deg);
 
             obstacles.add(inst);
@@ -538,11 +549,10 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
         }
     }
 
-    private boolean hitsAnyObstacles(float x, float z) {
+    private boolean collides(float x, float z) {
         for (GameModelInstance inst : obstacles) {
             boolean collides = touches(inst, x, z);
             if (collides) {
-                spatter.spawn(to16(x), to16(z));
                 return true;
             }
         }
@@ -552,6 +562,7 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
     private boolean hitsEnemy(float x, float z) {
         if (this.tank.alive && touches(this.tank.inst, x, z)) {
             this.tank.alive = false;
+            context.playerScore += 1000;
             explosion.spawn(true, to16(tank.pos.x), to16(tank.pos.z));
             spatter.spawn(to16(x), to16(z));
             randomSpawn(this.tank.pos, context);
@@ -560,7 +571,15 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
         }
         if (this.missile.active && touches(this.missile.inst, x, z)) {
             this.missile.active = false;
+            context.playerScore += 2000;
             explosion.spawn(false, to16(missile.pos.x), to16(missile.pos.z));
+            spatter.spawn(to16(x), to16(z));
+            return true;
+        }
+        if (this.saucer.active && touches(this.saucer.inst, x, z)) {
+            this.saucer.active = false;
+            context.playerScore += 5000;
+            explosion.spawn(false, to16(saucer.pos.x), to16(saucer.pos.z));
             spatter.spawn(to16(x), to16(z));
             return true;
         }
@@ -575,6 +594,7 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
     private void playerSpawn() {
         context.spawnProtected = 0;
         context.lives--;
+        context.enemyScore++;
         deathCracks = true;
         Timer.schedule(new Timer.Task() {
             @Override
@@ -584,6 +604,10 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
                 deathCracks = false;
             }
         }, 5);
+    }
+
+    private void spatterSpawn(float x, float z) {
+        spatter.spawn(to16(x), to16(z));
     }
 
     private boolean touches(GameModelInstance inst, float x, float z) {
@@ -653,8 +677,8 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
             int rx = ((rand8() & 0xFF) << 8) | (rand8() & 0xFF);
             int rz = ((rand8() & 0xFF) << 8) | (rand8() & 0xFF);
 
-            float x = BattleZone.wrap16f((float) rx);
-            float z = BattleZone.wrap16f((float) rz);
+            float x = wrap16f((float) rx);
+            float z = wrap16f((float) rz);
 
             if (!ctx.collisionChecker.collides(x, z)) {
                 pos.x = x;
@@ -665,4 +689,34 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
         }
     }
 
+    private static void randomSpawnDistantInView(GameContext ctx, Vector3 pos, float y) {
+        float HALF_ANGLE_DEG = 30f;
+        float MIN_R = 29000f;
+        float MAX_R = 31000f;
+
+        float angleDeg = ctx.hdFromCam - HALF_ANGLE_DEG + MathUtils.random(0f, 2f * HALF_ANGLE_DEG);
+        float angleRad = angleDeg * MathUtils.degreesToRadians;
+
+        float r = MathUtils.random(MIN_R, MAX_R);
+
+        float x = wrap16f(ctx.playerX + MathUtils.sin(angleRad) * r);
+        float z = wrap16f(ctx.playerZ + MathUtils.cos(angleRad) * r);
+
+        pos.x = x;
+        pos.y = y;
+        pos.z = z;
+    }
+
+    private static void randomSpawnDistant(GameContext ctx, Vector3 pos, float y) {
+
+        float rx = ctx.playerX + MathUtils.random(25000, 30000) * MathUtils.randomSign();
+        float rz = ctx.playerZ + MathUtils.random(25000, 30000) * MathUtils.randomSign();
+
+        float x = wrap16f(rx);
+        float z = wrap16f(rz);
+
+        pos.x = x;
+        pos.y = y;
+        pos.z = z;
+    }
 }

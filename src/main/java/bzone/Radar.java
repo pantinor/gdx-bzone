@@ -24,7 +24,7 @@ public class Radar {
     private boolean topLatched = false;       // prevents repeats while we're inside the window
     private float sweep256 = 0f;
 
-    public void drawRadar2D(PerspectiveCamera cam, ShapeRenderer sr, BaseTank tank, Missile missile, List<GameModelInstance> obstacles, float dt) {
+    public void drawRadar2D(PerspectiveCamera cam, ShapeRenderer sr, BaseTank tank, Missile missile, Saucer saucer, List<GameModelInstance> obstacles, float dt) {
 
         if (dt > 0.1f) {
             dt = 0.1f;
@@ -54,12 +54,11 @@ public class Radar {
         sr.line(RADAR_CX, RADAR_CY, ex, ey);
 
         sr.end();
-        
+
         sr.begin(ShapeRenderer.ShapeType.Filled);
 
         if (atTop(sweepRel8)) {
             if (!topLatched) {
-                //Sounds.play(Sounds.Effect.RADAR);
                 topLatched = true;
             }
         } else {
@@ -103,6 +102,10 @@ public class Radar {
             float py = RADAR_CY + cb * mid;
             sr.setColor(1f, 0f, 0f, 0.65f);
             sr.circle(px, py, 2);
+
+            if (topLatched) {
+                Sounds.play(Sounds.Effect.RADAR);
+            }
         }
 
         if (missile.active) {
@@ -121,6 +124,25 @@ public class Radar {
             float px = RADAR_CX - sb * mid;
             float py = RADAR_CY + cb * mid;
             sr.setColor(1f, 1f, 0f, 0.65f);
+            sr.circle(px, py, 2);
+        }
+
+        if (saucer.active) {
+            float edx16 = wrapDelta16(to16(saucer.pos.x) - to16(cam.position.x));
+            float edz16 = wrapDelta16(to16(saucer.pos.z) - to16(cam.position.z));
+            int enemyBearing8 = angle256(edx16, edz16);
+            int rel8 = (enemyBearing8 - playerHeading8) & 0xFF;
+
+            float dist = (float) Math.sqrt((float) edx16 * edx16 + (float) edz16 * edz16);
+            float t = MathUtils.clamp(dist / RADAR_RANGE_UNITS, 0f, 1f);
+            float mid = t * RADAR_RADIUS;
+
+            //draw blip of saucer
+            float th = (rel8 / 256f) * MathUtils.PI2;
+            float cb = MathUtils.cos(th), sb = MathUtils.sin(th);
+            float px = RADAR_CX - sb * mid;
+            float py = RADAR_CY + cb * mid;
+            sr.setColor(0f, 1f, 1f, 0.65f);
             sr.circle(px, py, 2);
         }
 

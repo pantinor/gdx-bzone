@@ -17,6 +17,7 @@ public class GameContext {
     public Shooter shooter = () -> {/* */ };
     public TankSpawn tankSpawn = () -> {/* */ };
     public PlayerSpawn playerSpawn = () -> {/* */ };
+    public SpatterSpawn spatterSpawn = (x, z) -> {/* */ };
 
     public interface CollisionChecker {
 
@@ -41,5 +42,10 @@ public class GameContext {
     public interface TankSpawn {
 
         void spawn();
+    }
+
+    public interface SpatterSpawn {
+
+        void spawn(float x, float z);
     }
 }
