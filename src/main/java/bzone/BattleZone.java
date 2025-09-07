@@ -577,9 +577,9 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
             return true;
         }
         if (this.saucer.active && touches(this.saucer.inst, x, z)) {
-            this.saucer.active = false;
+            this.saucer.kill();
+            Sounds.play(Sounds.Effect.SAUCER_HIT);
             context.playerScore += 5000;
-            explosion.spawn(false, to16(saucer.pos.x), to16(saucer.pos.z));
             spatter.spawn(to16(x), to16(z));
             return true;
         }

@@ -12,7 +12,7 @@ public class Sounds {
         BUMP("bump.ogg", false),
         ERROR("error.ogg", false),
         SPAWN("spawn.ogg", false),
-        SAUCER_ACTIVE("saucer.ogg", false),
+        SAUCER_ACTIVE("saucer.ogg", true),
         SAUCER_HIT("saucer-hit.ogg", false),
         MISSILE_MAX("maximize.ogg", false),
         MISSILE_MIN("minimize.ogg", false),

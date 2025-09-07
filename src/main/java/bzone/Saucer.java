@@ -4,6 +4,7 @@ import static bzone.BattleZone.to16;
 import static bzone.BattleZone.wrapDelta16;
 import com.badlogic.gdx.graphics.g3d.Environment;
 import com.badlogic.gdx.graphics.g3d.ModelBatch;
+import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector3;
 
 public class Saucer {
@@ -11,12 +12,19 @@ public class Saucer {
     private static final float TTL_SECONDS = 17f;
     private static final float ROT_PERIOD_SECONDS = 3f;
     private static final float ROT_SPEED_DEG_PER_SEC = 360f / ROT_PERIOD_SECONDS;
+    private static final float COURSE_MIN_SECONDS = 5;
+    private static final float COURSE_MAX_SECONDS = 15;
+    private static final float SPEED_MIN = 500f;
+    private static final float SPEED_MAX = 1200f;
 
     public final GameModelInstance inst;
     public final Vector3 pos = new Vector3();
     public boolean active = false;
     private float timeToLive;
     private float rotTimer = 0f;
+    private float courseTimer = 0f;
+    private final Vector3 vel = new Vector3();
+    private float spawnCooldown = 0f;
 
     public Saucer(GameModelInstance inst) {
         this.inst = inst;
@@ -26,30 +34,52 @@ public class Saucer {
         timeToLive = TTL_SECONDS;
         active = true;
         rotTimer = 0f;
+        rollNewCourse();
         Sounds.play(Sounds.Effect.SAUCER_ACTIVE);
+    }
+
+    public void kill() {
+        active = false;
+        Sounds.Effect.SAUCER_ACTIVE.sound().stop();
     }
 
     public void update(GameContext ctx, float dt) {
 
-        if (!this.active) {
+        if (!active) {
+            if (spawnCooldown > 0f) {
+                spawnCooldown -= dt;
+            }
             return;
         }
 
         timeToLive -= dt;
         if (timeToLive <= 0f) {
-            active = false;
+            kill();
             return;
         }
+
+        courseTimer -= dt;
+        if (courseTimer <= 0f) {
+            rollNewCourse();
+        }
+        pos.x += vel.x * dt;
+        pos.z += vel.z * dt;
 
         rotTimer += dt;
         if (rotTimer >= ROT_PERIOD_SECONDS) {
             rotTimer -= ROT_PERIOD_SECONDS;
         }
-        float yawDeg = rotTimer * ROT_SPEED_DEG_PER_SEC;
+        float spinDegrees = rotTimer * ROT_SPEED_DEG_PER_SEC;
 
         applyWrappedTransform(ctx);
-        
-        inst.transform.rotate(Vector3.Y, yawDeg);
+        inst.transform.rotate(Vector3.Y, spinDegrees);
+    }
+
+    private void rollNewCourse() {
+        courseTimer = MathUtils.random(COURSE_MIN_SECONDS, COURSE_MAX_SECONDS);
+        float sx = MathUtils.random(SPEED_MIN, SPEED_MAX) * MathUtils.randomSign();
+        float sz = MathUtils.random(SPEED_MIN, SPEED_MAX) * MathUtils.randomSign();
+        vel.set(sx, 0f, sz);
     }
 
     public void applyWrappedTransform(GameContext ctx) {
