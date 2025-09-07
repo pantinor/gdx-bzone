@@ -64,12 +64,6 @@ public class Missile {
                 .rotate(Vector3.Y, facing * 360f / ANGLE_STEPS);
     }
 
-    public void kill() {
-        active = false;
-        speed = BASE_SPEED;
-        Sounds.play(Sounds.Effect.EXPLOSION);
-    }
-
     public void spawn(GameContext ctx) {
 
         int start = WORLD_WRAP_HALF_16BIT - 4000;
@@ -221,10 +215,17 @@ public class Missile {
         float dz16 = BattleZone.wrapDelta16(BattleZone.to16(this.pos.z) - BattleZone.to16(ctx.playerZ));
         if (dx16 * dx16 + dz16 * dz16 <= MISSILE_RADIUS * MISSILE_RADIUS) {
             kill();
+            ctx.playerSpawn.spawn();
             return;
         }
 
         applyWrappedTransform(ctx);
+    }
+
+    public void kill() {
+        active = false;
+        speed = BASE_SPEED;
+        Sounds.play(Sounds.Effect.EXPLOSION);
     }
 
     private int calcAngleToPlayer(GameContext ctx) {

@@ -16,8 +16,6 @@ public class Projectile {
 
     public final GameModelInstance inst;
 
-    private static final Vector3 TMP1 = new Vector3();
-
     public boolean active;
     private float timeToLive;
     private float x, z;

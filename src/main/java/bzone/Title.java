@@ -27,6 +27,10 @@ public class Title {
     }
 
     public void render(ModelBatch modelBatch, Environment environment) {
+        
+        if (pos.y >= 3000) {
+            return;
+        }
 
         pos.y += DY_PER_FRAME;
         pos.z -= DZ_PER_FRAME;

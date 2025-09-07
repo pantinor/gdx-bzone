@@ -17,7 +17,7 @@ public class TankExplosion {
     private static final float GRAVITY = -4000f;
     private static final float INITIAL_SPEED_MIN = 5500f;
     private static final float INITIAL_SPEED_MAX = 6500f;
-    private static final float DRAG = 0.99f;   // very light air drag (per-second, raised to dt)
+    private static final float DRAG = 0.95f;   // very light air drag (per-second, raised to dt)
     private static final float FRICTION = 0.60f;   // horizontal energy kept on bounce
     private static final float RESTITUTION = 0.25f;   // less pogo-sticking
     private static final float SPIN_DAMP = 0.85f;   // damp spin per bounce
@@ -25,7 +25,7 @@ public class TankExplosion {
     private static final float GROUND_Y = 0f;
 
     private static final float GROUND_EPS = 2f;   // how close to ground counts as contact
-    private static final float STOP_BOUNCE_VY = 22f;  // vertical speed below this stops bouncing
+    private static final float STOP_BOUNCE_VY = 60f;  // vertical speed below this stops bouncing
     private static final float HVEL_EPS = 30f;  // horizontal speed threshold to sleep
     private static final float SLEEP_VEL_EPS = 12f;  // overall tiny speed to force sleep
 
@@ -56,33 +56,53 @@ public class TankExplosion {
         }
     }
 
-    private final List<Piece> pieces = new ArrayList<>(CHUNKS);
+    private final List<Piece> tankPieces = new ArrayList<>(CHUNKS);
+    private final List<Piece> missilePieces = new ArrayList<>(CHUNKS);
+
+    private List<Piece> pieces = tankPieces;
+
     private final Vector3 origin = new Vector3();
     private boolean finished = false;
 
     public TankExplosion(Color color) {
 
-        Models.Mesh[] opts = new Models.Mesh[]{
-            Models.Mesh.CHUNK0_TANK_10,
-            Models.Mesh.CHUNK1_TANK_11,
-            Models.Mesh.CHUNK2_TANK,
-            Models.Mesh.CHUNK1_TANK_14,
-            Models.Mesh.CHUNK0_TANK_15
+        Models.Mesh[] meshes = new Models.Mesh[]{
+            Models.Mesh.CHUNK3,
+            Models.Mesh.CHUNK0,
+            Models.Mesh.CHUNK1,
+            Models.Mesh.CHUNK2,
+            Models.Mesh.CHUNK_TANK
         };
 
         for (int i = 0; i < CHUNKS; i++) {
-            Models.Mesh mesh = opts[i % opts.length];
+            Models.Mesh mesh = meshes[i % meshes.length];
             GameModelInstance inst = Models.buildWireframeInstance(mesh.wf(), color, 1f, -1f, 0f, 0f, 0f);
             Piece p = new Piece(inst);
             p.size = computeHeight(mesh);
-            pieces.add(p);
+            tankPieces.add(p);
+        }
+
+        meshes = new Models.Mesh[]{
+            Models.Mesh.CHUNK3,
+            Models.Mesh.CHUNK0,
+            Models.Mesh.CHUNK1,
+            Models.Mesh.CHUNK2,};
+
+        for (int i = 0; i < CHUNKS; i++) {
+            Models.Mesh mesh = meshes[i % meshes.length];
+            GameModelInstance inst = Models.buildWireframeInstance(mesh.wf(), color, 1f, -1f, 0f, 0f, 0f);
+            Piece p = new Piece(inst);
+            p.size = computeHeight(mesh);
+            missilePieces.add(p);
         }
     }
 
-    public void spawn(float x, float z) {
+    public void spawn(boolean tank, float x, float z) {
 
         origin.set(x, 0.5f, z);
         finished = false;
+
+        pieces = tank ? tankPieces : missilePieces;
 
         for (Piece p : pieces) {
 
@@ -130,14 +150,8 @@ public class TankExplosion {
             // Initial velocity
             p.vel.set(dirX * speed, dirY * speed, dirZ * speed);
 
-            // Random spin axis + spin rate
-            float ax = (float) (Math.random() * 2f - 1f);
-            float ay = (float) (Math.random() * 2f - 1f);
-            float azz = (float) (Math.random() * 2f - 1f);
-            if (ax == 0 && ay == 0 && azz == 0) {
-                ax = 1f;
-            }
-            p.axis.set(ax, ay, azz).nor();
+            float ax = 0f, ay = 1f, azz = 0f; // force Y axis spin only
+            p.axis.set(ax, ay, azz);
 
             float spin = 240f + (float) Math.random() * 600f;
             if (Math.random() < 0.5f) {

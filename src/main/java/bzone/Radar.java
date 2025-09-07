@@ -59,7 +59,7 @@ public class Radar {
 
         if (atTop(sweepRel8)) {
             if (!topLatched) {
-                Sounds.play(Sounds.Effect.RADAR);
+                //Sounds.play(Sounds.Effect.RADAR);
                 topLatched = true;
             }
         } else {

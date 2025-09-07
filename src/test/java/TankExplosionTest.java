@@ -99,7 +99,7 @@ public class TankExplosionTest extends ApplicationAdapter implements InputProces
         switch (keycode) {
 
             case Input.Keys.SPACE:
-                explosion.spawn(0, 0);
+                explosion.spawn(true, 0, 0);
                 return true;
 
             default:

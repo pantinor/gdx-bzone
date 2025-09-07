@@ -1,48 +1,64 @@
 package bzone;
 
-import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Color;
-import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector3;
-
-import java.util.ArrayList;
-import java.util.List;
 
 public class Spatter {
 
     private final float frameTime = 0.1f;
-    private final float pointSize = 8;
-    private final Color color = Color.GREEN;
+    private final float scale = 10f;
     private final Vector3 origin = new Vector3();
+    private boolean finished = true;
+    private float timeAccum = 0f;
 
-    private int frameIdx = 0;
-    private float tAcc = 0f;
-    private boolean finished = false;
+    private static final int COUNT = 12;
 
-    private final Vector3 rotationAxis = new Vector3(1, 1, 0);
-    private Vector3[][] rotatedVerts;
+    private final Vector3[] particles = new Vector3[COUNT];
 
-    public Spatter(float ax, float ay, float az) {
-        this.rotationAxis.set(ax, ay, az).nor();
-        buildRotatedCache();
+    public Spatter() {
+        for (int i = 0; i < particles.length; i++) {
+            particles[i] = new Vector3();
+        }
     }
 
-    private static final Frame[] FRAMES = new Frame[]{
-        Frame.parse("W1 V 9 -52 -360 0 -36 -360 36 0 -360 52 36 -360 36 52 -360 0 36 -360 -36 0 -360 -52 -36 -360 -36 0 0 0 E 0 P 8 0 1 2 3 4 5 6 7"),
-        Frame.parse("W1 V 9 -100 -400 0 -72 -400 72 0 -400 100 72 -400 72 100 -400 0 72 -400 -72 0 -400 -100 -72 -400 -72 0 0 0 E 0 P 8 0 1 2 3 4 5 6 7"),
-        Frame.parse("W1 V 9 -152 -440 0 -108 -440 108 0 -440 152 108 -440 108 152 -440 0 108 -440 -108 0 -440 -152 -108 -440 -108 0 0 0 E 0 P 8 0 1 2 3 4 5 6 7"),
-        Frame.parse("W1 V 9 -200 -480 0 -144 -480 144 0 -480 200 144 -480 144 200 -480 0 144 -480 -144 0 -480 -200 -144 -480 -144 0 0 0 E 0 P 8 0 1 2 3 4 5 6 7"),
-        Frame.parse("W1 V 9 -252 -520 0 -176 -520 176 0 -520 252 176 -520 176 252 -520 0 176 -520 -176 0 -520 -252 -176 -520 -176 0 0 0 E 0 P 8 0 1 2 3 4 5 6 7"),
-        Frame.parse("W1 V 9 -300 -560 0 -212 -560 212 0 -560 300 212 -560 212 300 -560 0 212 -560 -212 0 -560 -300 -212 -560 -212 0 0 0 E 0 P 8 0 1 2 3 4 5 6 7"),
-        Frame.parse("W1 V 9 -352 -600 0 -264 -600 264 0 -600 352 264 -600 264 352 -600 0 264 -600 -264 0 -600 -352 -264 -600 -264 0 0 0 E 0 P 8 0 1 2 3 4 5 6 7"),
-        Frame.parse("W1 V 9 -400 -640 0 -284 -640 284 0 -640 400 284 -640 284 400 -640 0 284 -640 -284 0 -640 -400 -284 -640 -284 0 0 0 E 0 P 8 0 1 2 3 4 5 6 7"),};
-
     public void spawn(float x, float z) {
-        this.origin.set(x, 0.6f, z);
-        frameIdx = 0;
-        tAcc = 0f;
+        this.origin.set(x, 0.5f, z);
+        int[][] initPositions = createInitPos();
+        for (int i = 0; i < particles.length; i++) {
+            float px = origin.x + initPositions[i][0] * scale;
+            float py = origin.y + initPositions[i][1] * scale;
+            float pz = origin.z + initPositions[i][2] * scale;
+            particles[i].set(px, py, pz);
+        }
         finished = false;
+        timeAccum = 0f;
+    }
+
+    private static int[][] createInitPos() {
+        int[][] pts = new int[COUNT][3];
+        int idx = 0;
+
+        idx = fillQuadrant(pts, idx, +1, +1);
+        idx = fillQuadrant(pts, idx, -1, +1);
+        idx = fillQuadrant(pts, idx, -1, -1);
+        idx = fillQuadrant(pts, idx, +1, -1);
+
+        return pts;
+    }
+
+    private static int fillQuadrant(int[][] pts, int idx, int sx, int sy) {
+        for (int k = 0; k < 3; k++) {
+            int x = MathUtils.random(1, 10) * sx;
+            int y = MathUtils.random(1, 10) * sy;
+            int z = MathUtils.random(1, 10) * MathUtils.randomSign();
+            pts[idx][0] = x;
+            pts[idx][1] = y;
+            pts[idx][2] = z;
+            idx++;
+        }
+        return idx;
     }
 
     public void update(float dt) {
@@ -50,16 +66,47 @@ public class Spatter {
             return;
         }
 
-        if (dt > 0.1f) {
-            dt = 0.1f;
-        }
+        timeAccum += dt;
 
-        tAcc += dt;
-        while (tAcc >= frameTime) {
-            tAcc -= frameTime;
-            frameIdx++;
-            if (frameIdx >= FRAMES.length) {
-                frameIdx = FRAMES.length - 1;
+        final float speed = 600f;
+        final float maxRadius = 800f;  // finish when all particles are beyond this radius
+
+        final float stepDist = speed * frameTime;
+
+        while (timeAccum >= frameTime) {
+            timeAccum -= frameTime;
+
+            boolean allPastMax = true;
+
+            for (int i = 0; i < particles.length; i++) {
+
+                // 3D spoke direction from origin to current particle (x,y,z)
+                Vector3 p = particles[i];
+                float dx = p.x - origin.x;
+                float dy = p.y - origin.y;
+                float dz = p.z - origin.z;
+
+                float len = (float) Math.sqrt(dx * dx + dy * dy + dz * dz);
+                if (len > 0f) {
+                    dx /= len;
+                    dy /= len;
+                    dz /= len;   // normalize to unit vector
+                }
+
+                // Advance in 3D; constant speed
+                p.add(dx * stepDist, dy * stepDist, dz * stepDist);
+
+                // Distance check from spawn origin in XZ
+                Vector3 pos = particles[i];
+                float ox = pos.x - origin.x;
+                float oy = pos.y - origin.y;
+                float r2 = ox * ox + oy * oy;
+                if (r2 < maxRadius * maxRadius) {
+                    allPastMax = false;
+                }
+            }
+
+            if (allPastMax) {
                 finished = true;
                 break;
             }
@@ -67,89 +114,19 @@ public class Spatter {
     }
 
     public void render(ShapeRenderer sr) {
-
         if (finished) {
             return;
         }
 
-        float alphaMul = 1f - (frameIdx / (float) (FRAMES.length - 1));
-        float prevA = color.a;
-        float a = Math.max(0f, Math.min(1f, prevA * (0.35f + 0.65f * alphaMul))); // keep some visibility
+        final float W = 4, H = 4, D = 4;
+        final float hx = W * 0.5f, hy = H * 0.5f, hz = D * 0.5f;
 
-        sr.begin(ShapeRenderer.ShapeType.Filled);
-        sr.setColor(color.r, color.g, color.b, a);
-
-        Frame f = FRAMES[frameIdx];
-        Vector3[] verts = (rotatedVerts != null) ? rotatedVerts[frameIdx] : f.vertices;
-
-        for (int idx : f.drawIndices) {
-            Vector3 p = verts[idx];
-            sr.box(origin.x + p.x, origin.y + p.y, origin.z + p.z, pointSize, pointSize, pointSize);
+        sr.begin(ShapeRenderer.ShapeType.Line);
+        sr.setColor(Color.GREEN);
+        for (Vector3 p : particles) {
+            sr.box(p.x - hx, p.y - hy, p.z - hz, W, H, D);
         }
-
         sr.end();
-
-        Gdx.gl.glDisable(GL20.GL_BLEND);
     }
 
-    private void buildRotatedCache() {
-        rotatedVerts = new Vector3[FRAMES.length][];
-        for (int i = 0; i < FRAMES.length; i++) {
-            Vector3[] src = FRAMES[i].vertices;
-            Vector3[] dst = new Vector3[src.length];
-            for (int j = 0; j < src.length; j++) {
-                dst[j] = new Vector3(src[j]).rotate(rotationAxis, 90);
-            }
-            rotatedVerts[i] = dst;
-        }
-    }
-
-    private static class Frame {
-
-        final Vector3[] vertices;
-        final int[] drawIndices;
-
-        private Frame(Vector3[] verts, int[] draw) {
-            this.vertices = verts;
-            this.drawIndices = draw;
-        }
-
-        static Frame parse(String s) {
-            String[] tok = s.trim().split("\\s+");
-            int i = 0;
-
-            while (i < tok.length && !tok[i].equalsIgnoreCase("V")) {
-                i++;
-            }
-            if (i >= tok.length - 1) {
-                throw new IllegalArgumentException("No vertex count: " + s);
-            }
-            int vCount = Integer.parseInt(tok[++i]);
-            i++;
-
-            List<Vector3> verts = new ArrayList<>(vCount);
-            for (int v = 0; v < vCount; v++) {
-                float x = Float.parseFloat(tok[i++]);
-                float y = Float.parseFloat(tok[i++]);
-                float z = Float.parseFloat(tok[i++]);
-                verts.add(new Vector3(x, y, z));
-            }
-
-            while (i < tok.length && !tok[i].equalsIgnoreCase("P")) {
-                i++;
-            }
-            if (i >= tok.length - 1) {
-                throw new IllegalArgumentException("No P section: " + s);
-            }
-            int pCount = Integer.parseInt(tok[++i]);
-            i++;
-
-            int[] draw = new int[pCount];
-            for (int p = 0; p < pCount; p++) {
-                draw[p] = Integer.parseInt(tok[i++]);
-            }
-
-            return new Frame(verts.toArray(new Vector3[0]), draw);
-        }
-    }
 }
