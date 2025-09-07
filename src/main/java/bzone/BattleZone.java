@@ -58,10 +58,10 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
      */
     public static final int WORLD_WRAP_HALF_16BIT = WORLD_WRAP_16BIT >>> 1; // 32768
 
-    private static final float YAW_SPEED_DEG = 90f;
+    private static final float YAW_SPEED_DEG = 30f;
     private static final float MOVE_SPEED = 3200f;
 
-    private boolean wDown, aDown, sDown, dDown;
+    private boolean wDown, aDown, sDown, dDown, blocked;
     private boolean rstickFwd, rstickBck, lstickFwd, lstickBck;
     private float headingDeg = 0f;
 
@@ -85,7 +85,6 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
     private TankExplosion explosion;
     private final Spatter spatter = new Spatter();
     private Title title;
-    private boolean deathCracks = false;
 
     private final Radar radarScreen = new Radar();
     private EngineSound engine;
@@ -98,7 +97,7 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
         FreeTypeFontGenerator generator = new FreeTypeFontGenerator(Gdx.files.classpath("assets/data/bzone-font.ttf"));
         FreeTypeFontGenerator.FreeTypeFontParameter parameter = new FreeTypeFontGenerator.FreeTypeFontParameter();
 
-        parameter.size = 18;
+        parameter.size = 36;
         parameter.color = Color.RED;
         parameter.hinting = FreeTypeFontGenerator.Hinting.Full;
         font = generator.generateFont(parameter);
@@ -192,9 +191,19 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
         }
         if (move != 0f) {
             TMP1.set(cam.direction.x, 0f, cam.direction.z).nor().scl(move);
-            cam.position.add(TMP1);
-            cam.position.x = wrap16f(cam.position.x);
-            cam.position.z = wrap16f(cam.position.z);
+            float sx = cam.position.x, sz = cam.position.z;
+            float nx = wrap16f(sx + TMP1.x);
+            float nz = wrap16f(sz + TMP1.z);
+            if (!blockedAt(nx, nz)) {
+                blocked = false;
+                cam.position.x = nx;
+                cam.position.z = nz;
+            } else {
+                if (!blocked) {
+                    Sounds.play(Sounds.Effect.BUMP);
+                }
+                blocked = true;
+            }
         }
 
         cam.update(true);
@@ -256,9 +265,9 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
 
         drawHUD(dt);
 
-        //batch.begin();
-        //font.draw(batch, "hd " + hd + " pos = " + cam.position.x + " " + cam.position.z, 100, SCREEN_HEIGHT - 100);
-        //batch.end();
+        batch.begin();
+        font.draw(batch, "SCORE  " + context.playerScore, 800, SCREEN_HEIGHT - 80);
+        batch.end();
     }
 
     @Override
@@ -294,7 +303,9 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
                 missile.spawn(context);
                 return true;
             case Input.Keys.SPACE:
-                playerProjectile.spawnFromPlayer(context);
+                if (context.alive) {
+                    playerProjectile.spawnFromPlayer(context);
+                }
                 return true;
             case Input.Keys.NUM_6:
                 randomSpawnDistantInView(context, this.saucer.pos, 0.5f);
@@ -447,15 +458,20 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
         sr.setColor(0f, reticleIntensity, 0f, 1f);
 
         //reticle
-        sr.line(640 - 50, 480 + 25, 640 - 50, 480 + 25 + 25);
-        sr.line(640 + 50, 480 + 25, 640 + 50, 480 + 25 + 25);
-        sr.line(640, 480 + 50, 640, 480 + 50 + 50);
-        sr.line(640 - 50, 480 + 50, 640 + 50, 480 + 50);
+        final float cx = 640, cy = 480;
+        final float X = 75f;    // half-width
+        final float Y = 75f;    // bar offset from center
+        final float T = 25f;    // tick length
+        final float L = 100f;   // long center segment length
 
-        sr.line(640 - 50, 480 - 25, 640 - 50, 480 - 25 - 25);
-        sr.line(640 + 50, 480 - 25, 640 + 50, 480 - 25 - 25);
-        sr.line(640, 480 - 50, 640, 480 - 50 - 50);
-        sr.line(640 - 50, 480 - 50, 640 + 50, 480 - 50);
+        sr.line(cx, cy - (Y + L), cx, cy - Y);
+        sr.line(cx - X, cy - Y, cx + X, cy - Y);
+        sr.line(cx - X, cy - Y, cx - X, cy - (Y - T));
+        sr.line(cx + X, cy - Y, cx + X, cy - (Y - T));
+        sr.line(cx, cy + Y, cx, cy + (Y + L));
+        sr.line(cx - X, cy + Y, cx + X, cy + Y);
+        sr.line(cx - X, cy + (Y - T), cx - X, cy + Y);
+        sr.line(cx + X, cy + (Y - T), cx + X, cy + Y);
 
         sr.end();
         Gdx.gl.glLineWidth(1);
@@ -481,7 +497,7 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
             sr.end();
         }
 
-        if (deathCracks) {
+        if (!context.alive) {
             Models.drawDeathCracks(sr);
         }
 
@@ -539,14 +555,30 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
 
     private void drawObstacles(ModelBatch batch) {
         for (GameModelInstance inst : obstacles) {
-            Vector3 wrapped = nearestWrappedPos(inst, cam.position.x, cam.position.z, TMP1);
-            if (!cam.frustum.pointInFrustum(wrapped)) {
+            nearestWrappedPos(inst, cam.position.x, cam.position.z, TMP1);
+            if (!cam.frustum.pointInFrustum(TMP1)) {
                 continue;
             }
-            MAT1.set(inst.transform).setTranslation(wrapped);
+            MAT1.set(inst.transform).setTranslation(TMP1);
             inst.transform.set(MAT1);
             batch.render(inst, environment);
         }
+    }
+
+    private boolean blockedAt(float x, float z) {
+        if (collides(x, z)) {
+            return true;
+        }
+        if (this.tank.alive && touches(this.tank.inst, x, z)) {
+            return true;
+        }
+        if (this.missile.active && touches(this.missile.inst, x, z)) {
+            return true;
+        }
+        if (this.saucer.active && touches(this.saucer.inst, x, z)) {
+            return true;
+        }
+        return false;
     }
 
     private boolean collides(float x, float z) {
@@ -595,13 +627,13 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
         context.spawnProtected = 0;
         context.lives--;
         context.enemyScore++;
-        deathCracks = true;
+        context.alive = false;
         Timer.schedule(new Timer.Task() {
             @Override
             public void run() {
                 randomSpawn(cam.position, context);
                 Sounds.play(Sounds.Effect.SPAWN);
-                deathCracks = false;
+                context.alive = true;
             }
         }, 5);
     }
@@ -611,9 +643,9 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
     }
 
     private boolean touches(GameModelInstance inst, float x, float z) {
-        Vector3 wrapped = nearestWrappedPos(inst, x, z, TMP1);
+        nearestWrappedPos(inst, x, z, TMP1);
         // world-space delta from instance center to the test point
-        TMP2.set(x - wrapped.x, 0f, z - wrapped.z);
+        TMP2.set(x - TMP1.x, 0f, z - TMP1.z);
 
         MAT1.set(inst.transform).inv();
         TMP2.rot(MAT1);
@@ -630,12 +662,12 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
         return Math.abs(lx) <= hx + COLLISION_EPS && Math.abs(lz) <= hz + COLLISION_EPS;
     }
 
-    public static Vector3 nearestWrappedPos(GameModelInstance inst, float x, float z, Vector3 out) {
+    public static void nearestWrappedPos(GameModelInstance inst, float x, float z, Vector3 out) {
         float refX16 = to16(x);
         float refZ16 = to16(z);
 
-        float obX16 = Math.round(inst.getX());
-        float obZ16 = Math.round(inst.getZ());
+        float obX16 = inst.getX();
+        float obZ16 = inst.getZ();
 
         float dx16 = wrapDelta16(obX16 - refX16);
         float dz16 = wrapDelta16(obZ16 - refZ16);
@@ -643,7 +675,7 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
         float wx = x + dx16;
         float wz = z + dz16;
 
-        return out.set(wx, inst.getY(), wz);
+        out.set(wx, inst.getY(), wz);
     }
 
     public static float wrap16f(float v) {
@@ -691,30 +723,21 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
 
     private static void randomSpawnDistantInView(GameContext ctx, Vector3 pos, float y) {
         float HALF_ANGLE_DEG = 30f;
-        float MIN_R = 29000f;
-        float MAX_R = 31000f;
-
         float angleDeg = ctx.hdFromCam - HALF_ANGLE_DEG + MathUtils.random(0f, 2f * HALF_ANGLE_DEG);
         float angleRad = angleDeg * MathUtils.degreesToRadians;
-
-        float r = MathUtils.random(MIN_R, MAX_R);
-
+        float r = MathUtils.random(29000, 31000);
         float x = wrap16f(ctx.playerX + MathUtils.sin(angleRad) * r);
         float z = wrap16f(ctx.playerZ + MathUtils.cos(angleRad) * r);
-
         pos.x = x;
         pos.y = y;
         pos.z = z;
     }
 
     private static void randomSpawnDistant(GameContext ctx, Vector3 pos, float y) {
-
-        float rx = ctx.playerX + MathUtils.random(25000, 30000) * MathUtils.randomSign();
-        float rz = ctx.playerZ + MathUtils.random(25000, 30000) * MathUtils.randomSign();
-
+        float rx = ctx.playerX + MathUtils.random(29000, 31000) * MathUtils.randomSign();
+        float rz = ctx.playerZ + MathUtils.random(29000, 31000) * MathUtils.randomSign();
         float x = wrap16f(rx);
         float z = wrap16f(rz);
-
         pos.x = x;
         pos.y = y;
         pos.z = z;

@@ -5,6 +5,8 @@ import static bzone.BattleZone.SCREEN_WIDTH;
 import static bzone.BattleZone.WORLD_WRAP_HALF_16BIT;
 import static bzone.BattleZone.to16;
 import static bzone.BattleZone.wrapDelta16;
+import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.graphics.Color;
 
 import com.badlogic.gdx.graphics.PerspectiveCamera;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
@@ -34,6 +36,13 @@ public class Radar {
         sr.setColor(0.05f, 0.05f, 0.05f, 0.75f);
         sr.circle(RADAR_CX, RADAR_CY, RADAR_RADIUS);
         sr.end();
+        
+        Gdx.gl.glLineWidth(2);
+        sr.begin(ShapeRenderer.ShapeType.Line);
+        sr.setColor(Color.RED);
+        sr.circle(RADAR_CX, RADAR_CY, RADAR_RADIUS);
+        sr.end();
+        Gdx.gl.glLineWidth(1);
 
         sweep256 = (sweep256 + STEPS_PER_SEC * dt) % 256f;
         int sweep8 = ((int) sweep256) & 0xFF;

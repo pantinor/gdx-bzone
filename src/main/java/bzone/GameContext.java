@@ -9,6 +9,7 @@ public class GameContext {
     public int playerScore;
     public long nmiCount;
     public int lives = 3;
+    public boolean alive = true;
 
     public Tank.TankType tankType = Tank.TankType.SLOW;
 
