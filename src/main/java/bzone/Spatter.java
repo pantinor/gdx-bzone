@@ -1,5 +1,6 @@
 package bzone;
 
+import static bzone.BattleZone.PLAYER_Y;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.MathUtils;
@@ -24,7 +25,7 @@ public class Spatter {
     }
 
     public void spawn(float x, float z) {
-        this.origin.set(x, 0.5f, z);
+        this.origin.set(x, PLAYER_Y, z);
         int[][] initPositions = createInitPos();
         for (int i = 0; i < particles.length; i++) {
             float px = origin.x + initPositions[i][0] * scale;

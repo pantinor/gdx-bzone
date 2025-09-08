@@ -1,8 +1,6 @@
 package bzone;
 
-import static bzone.BattleZone.WORLD_WRAP_HALF_16BIT;
 import static bzone.BattleZone.to16;
-import static bzone.BattleZone.wrap16f;
 import static bzone.BattleZone.wrapDelta16;
 import static bzone.Tank.ANGLE_STEPS;
 import com.badlogic.gdx.graphics.g3d.Environment;
@@ -65,6 +63,8 @@ public class Missile {
     }
 
     public void spawn(GameContext ctx) {
+
+        ctx.missileCount += 1;
 
         this.facing = 64;
         this.verticalVelocity = 0f;
@@ -217,7 +217,7 @@ public class Missile {
     private int calcAngleToPlayer(GameContext ctx) {
         float dx16 = wrapDelta16(to16(ctx.playerX) - to16(this.pos.x));
         float dz16 = wrapDelta16(to16(ctx.playerZ) - to16(this.pos.z));
-        float a = MathUtils.atan2((float) dx16, (float) dz16); // +Z is “north”
+        float a = MathUtils.atan2((float) dx16, (float) dz16);
         return ((int) Math.round((a / MathUtils.PI2) * ANGLE_STEPS)) & 0xFF;
     }
 

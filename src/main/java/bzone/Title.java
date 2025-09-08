@@ -9,7 +9,7 @@ public class Title {
     private static final float DY_PER_FRAME = 8;
     private static final float DZ_PER_FRAME = 64;
 
-    private final Vector3 pos = new Vector3(0, -1024, 0);
+    public final Vector3 pos = new Vector3(0, 0, 0);
 
     private final GameModelInstance ba;
     private final GameModelInstance ttle;
@@ -21,11 +21,6 @@ public class Title {
         this.zone = zone;
     }
     
-    public void setPosition(float x, float z) {
-        pos.x = x;
-        pos.z = z;
-    }
-
     public void render(ModelBatch modelBatch, Environment environment) {
         
         if (pos.y >= 3000) {

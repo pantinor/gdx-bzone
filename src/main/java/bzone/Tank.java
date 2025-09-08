@@ -6,12 +6,23 @@ import com.badlogic.gdx.math.MathUtils;
 
 public class Tank extends BaseTank {
 
-    public Tank(GameModelInstance inst, GameModelInstance radar) {
-        super(inst, radar);
+    final GameModelInstance slowTank;
+    final GameModelInstance superTank;
+
+    public Tank(GameModelInstance slowTank, GameModelInstance superTank, GameModelInstance radar) {
+        super(slowTank, radar);
+        this.slowTank = slowTank;
+        this.superTank = superTank;
     }
 
     @Override
     protected void updateTank(GameContext ctx, float dt) {
+
+        if (ctx.missileCount >= 5) {
+            this.inst = this.superTank;
+        } else {
+            this.inst = this.slowTank;
+        }
 
         if (this.moveCounter > 0) {
             this.moveCounter--;
@@ -49,7 +60,7 @@ public class Tank extends BaseTank {
                 tryShootPlayer(ctx);
                 rotateRight(dt);
                 tryShootPlayer(ctx);
-                if (ctx.tankType == TankType.SUPER) {
+                if (ctx.isSuperTank()) {
                     rotateRight(dt);
                     tryShootPlayer(ctx);
                     rotateRight(dt);
@@ -60,7 +71,7 @@ public class Tank extends BaseTank {
                 tryShootPlayer(ctx);
                 rotateLeft(dt);
                 tryShootPlayer(ctx);
-                if (ctx.tankType == TankType.SUPER) {
+                if (ctx.isSuperTank()) {
                     rotateLeft(dt);
                     tryShootPlayer(ctx);
                     rotateLeft(dt);
@@ -84,10 +95,10 @@ public class Tank extends BaseTank {
         float dz16 = wrapDelta16(to16(ctx.playerZ) - to16(this.pos.z));
         float dist = (float) Math.sqrt(dx16 * dx16 + dz16 * dz16);
 
-        final float forwardStart = (ctx.tankType == TankType.SUPER) ? FWD_START_DISTANCE_SUPER_TANK : FWD_START_DISTANCE_SLOW_TANK;
+        final float forwardStart = ctx.isSuperTank() ? FWD_START_DISTANCE_SUPER_TANK : FWD_START_DISTANCE_SLOW_TANK;
 
         if (dist >= forwardStart) {
-            float mult = (ctx.tankType == TankType.SUPER) ? SUPER_SPEED_MULT : 1f;
+            float mult = (ctx.isSuperTank()) ? SUPER_SPEED_MULT : 1f;
             forward(ctx, mult, dt);
         }
     }

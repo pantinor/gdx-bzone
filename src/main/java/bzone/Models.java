@@ -20,10 +20,6 @@ public class Models {
 
     private static final Vector3 TMP1 = new Vector3();
     private static final Vector3 TMP2 = new Vector3();
-    private static final Vector3 TMP3 = new Vector3();
-    private static final Vector3 TMP4 = new Vector3();
-    private static final Vector3 TMP5 = new Vector3();
-    private static final Vector3 TMP6 = new Vector3();
 
     public static final int[][] LIFE_ICON_STROKES = {
         {0, 0, -6, 6, 3, 9, 6, 15, 42, 6, 36, 0, 0, 0},
@@ -157,15 +153,13 @@ public class Models {
         if (s == null) {
             throw new IllegalArgumentException("null wireframe string");
         }
-        String[] t = s.trim().split("\\s+");  // split on ANY whitespace
+        String[] t = s.trim().split("\\s+");
         int i = 0;
 
-        // Header
         if (i >= t.length || !"W1".equals(t[i++])) {
             throw new IllegalArgumentException("Bad header (expected W1)");
         }
 
-        // Vertices
         if (i >= t.length || !"V".equals(t[i++])) {
             throw new IllegalArgumentException("Missing V section");
         }
@@ -181,7 +175,6 @@ public class Models {
             wf.addVertex(x, y, z);
         }
 
-        // Edges
         if (i >= t.length || !"E".equals(t[i++])) {
             throw new IllegalArgumentException("Missing E section");
         }
@@ -192,13 +185,11 @@ public class Models {
             }
             int a = Integer.parseInt(t[i++]);
             int b = Integer.parseInt(t[i++]);
-            // optional light bounds check; skip invalid
             if (a >= 0 && b >= 0 && a < wf.getVertices().size() && b < wf.getVertices().size()) {
                 wf.addEdge(a, b);
             }
         }
 
-        // Points (optional but expected in your writer)
         if (i < t.length) {
             if (!"P".equals(t[i++])) {
                 throw new IllegalArgumentException("Missing P section");
@@ -218,9 +209,23 @@ public class Models {
         return wf;
     }
 
-    public static Model buildWireframeModel(Wireframe wf, Color color, float unitScale) {
+    public static GameModelInstance buildWireframeInstance(Mesh mesh, Color color, float unitScale) {
+        Model model = buildWireframeModel(mesh, color, unitScale);
+        GameModelInstance instance = new GameModelInstance(mesh, model);
+        return instance;
+    }
 
-        final List<Wireframe.Vertex> verts = wf.getVertices();
+    public static Model buildWireframeModel(Mesh mesh, Color color, float unitScale) {
+
+        final List<Wireframe.Vertex> verts = mesh.wf().getVertices();
+
+        float minY = Float.POSITIVE_INFINITY;
+        for (Wireframe.Vertex v : verts) {
+            if (v.y < minY) {
+                minY = v.y;
+            }
+        }
+        final float yOffset = -minY;
 
         ModelBuilder mb = new ModelBuilder();
         mb.begin();
@@ -228,26 +233,19 @@ public class Models {
         MeshPartBuilder b = mb.part("wire", GL20.GL_LINES, VertexAttributes.Usage.Position | VertexAttributes.Usage.ColorUnpacked, mat);
         b.setColor(color);
 
-        // Edges → lines
-        for (Wireframe.Edge e : wf.getEdges()) {
+        for (Wireframe.Edge e : mesh.wf().getEdges()) {
             if (e.a < 0 || e.a >= verts.size() || e.b < 0 || e.b >= verts.size()) {
                 continue;
             }
             Wireframe.Vertex va  = verts.get(e.a);
             Wireframe.Vertex vb = verts.get(e.b);
 
-            TMP1.set(va.x * unitScale, va.y * unitScale, va.z * unitScale);
-            TMP2.set(vb.x * unitScale, vb.y * unitScale, vb.z * unitScale);
+            TMP1.set(va.x * unitScale, (va.y + yOffset) * unitScale, va.z * unitScale);
+            TMP2.set(vb.x * unitScale, (vb.y + yOffset) * unitScale, vb.z * unitScale);
             b.line(TMP1, TMP2);
         }
 
         return mb.end();
-    }
-
-    public static GameModelInstance buildWireframeInstance(Wireframe wf, Color color, float unitScale) {
-        Model model = buildWireframeModel(wf, color, unitScale);
-        GameModelInstance instance = new GameModelInstance(model);
-        return instance;
     }
 
     public static ModelInstance buildXZGrid(int halfLines, float spacing, Color color) {

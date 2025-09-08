@@ -10,15 +10,18 @@ public class GameContext {
     public long nmiCount;
     public int lives = 3;
     public boolean alive = true;
-
-    public Tank.TankType tankType = Tank.TankType.SLOW;
+    public int missileCount = 0;
 
     public CollisionChecker collisionChecker = (x, z) -> false;
-    public HitChecker hitChecker = (x, z) -> false;
+    public HitChecker hitsEnemy = (x, z) -> false;
+    public HitChecker hitsObstacle = (x, z) -> false;
     public Shooter shooter = () -> {/* */ };
     public TankSpawn tankSpawn = () -> {/* */ };
     public PlayerSpawn playerSpawn = () -> {/* */ };
-    public SpatterSpawn spatterSpawn = (x, z) -> {/* */ };
+
+    public boolean isSuperTank() {
+        return this.missileCount >= 5;
+    }
 
     public interface CollisionChecker {
 

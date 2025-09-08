@@ -36,7 +36,7 @@ public class Radar {
         sr.setColor(0.05f, 0.05f, 0.05f, 0.75f);
         sr.circle(RADAR_CX, RADAR_CY, RADAR_RADIUS);
         sr.end();
-        
+
         Gdx.gl.glLineWidth(2);
         sr.begin(ShapeRenderer.ShapeType.Line);
         sr.setColor(Color.RED);
@@ -53,7 +53,7 @@ public class Radar {
         int sweepRel8 = (sweep8 - playerHeading8) & 0xFF;
 
         sr.begin(ShapeRenderer.ShapeType.Line);
-        sr.setColor(0f, 1f, 0f, 0.25f);
+        sr.setColor(Color.RED);
 
         // draw sweep line
         float a = (sweepRel8 / 256f) * MathUtils.PI2;
@@ -64,8 +64,6 @@ public class Radar {
 
         sr.end();
 
-        sr.begin(ShapeRenderer.ShapeType.Filled);
-
         if (atTop(sweepRel8)) {
             if (!topLatched) {
                 topLatched = true;
@@ -74,6 +72,8 @@ public class Radar {
             topLatched = false;
         }
 
+        sr.begin(ShapeRenderer.ShapeType.Filled);
+        
         for (GameModelInstance inst : obstacles) {
             float dx16 = wrapDelta16(to16(inst.initialPos.x) - to16(cam.position.x));
             float dz16 = wrapDelta16(to16(inst.initialPos.z) - to16(cam.position.z));
@@ -90,7 +90,7 @@ public class Radar {
             float px = RADAR_CX - sb * r;
             float py = RADAR_CY + cb * r;
 
-            sr.setColor(0.2f, 0.2f, 0.2f, 0.65f);
+            sr.setColor(0.2f, 0.2f, 0.2f, 0.55f);
             sr.circle(px, py, 1);
         }
 

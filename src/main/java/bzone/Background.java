@@ -19,7 +19,6 @@ public class Background {
     private static final String LAND7_HEX = "60000000A01F406040006060C01F4060000040004000807FE01F400020004060C01F80602000C01F10004060D01F20603000E01FD01F606000C0";
     private static final String LAND8_HEX = "0000C0002000E060E01F40601000E01F30004060C01F000000C0";
 
-    // background 
     private static final int ANGLES = 512;
     private static final float UNITS_PER_ANGLE = -8f;
     private static final float SEG_W_UNITS = 512f;
@@ -29,7 +28,6 @@ public class Background {
     private final int horizonAdj = 0;
     private static final List<List<Vector>> LAND = landScapeVectors();
 
-    // volcano particles  
     private static final int VOLCANO_SEG_INDEX = 5;
     private static final int VOLCANO_PARTICLES = 5;
     private static final int VOLCANO_TOP_Y_UNITS = 94; // top of volcano is +94 units above horizon
@@ -80,18 +78,14 @@ public class Background {
         while (pc + 2 <= b.length) {
             int w0 = rd16LE(b, pc);
 
-            // VRTS?
             if (w0 == 0xC000) {
                 break;
             }
 
-            // SVEC? (bit 14 set)
             if ((w0 & 0x4000) != 0) {
-                // dy: bits 12..8 (5-bit signed) * 2
                 int dy5 = (w0 >>> 8) & 0x1F;
                 int dy = signExtend(dy5, 5) * 2;
 
-                // dx: bits 4..0 (5-bit signed) * 2
                 int dx5 = (w0) & 0x1F;
                 int dx = signExtend(dx5, 5) * 2;
 
@@ -100,21 +94,17 @@ public class Background {
                 continue;
             }
 
-            // VCTR (long): needs a second word
             if (pc + 4 > b.length) {
                 break; // safety
             }
             int w1 = rd16LE(b, pc + 2);
 
-            // dy: 10-bit signed from w0 (bits 9..0) -> low8 + bits 9..8 from w0[11..10]
             int dy10 = ((w0 >>> 10) & 0x03) << 8 | (w0 & 0xFF);
             int dy = signExtend(dy10, 10);
 
-            // dx: 10-bit signed from w1 (bits 9..0) -> low8 + bits 9..8 from w1[11..10]
             int dx10 = ((w1 >>> 10) & 0x03) << 8 | (w1 & 0xFF);
             int dx = signExtend(dx10, 10);
 
-            // intensity (latched)
             curInt = (w1 >>> 12) & 0x0F;
 
             out.add(new Vector(dx, dy, curInt, false));

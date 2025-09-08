@@ -9,10 +9,6 @@ import com.badlogic.gdx.math.Vector3;
 
 public abstract class BaseTank {
 
-    public static enum TankType {
-        SLOW, SUPER
-    }
-
     public static final int ANGLE_STEPS = 256;
 
     protected static final int RADAR_SPIN = 4;
@@ -28,7 +24,7 @@ public abstract class BaseTank {
     protected static final float FWD_START_DISTANCE_SLOW_TANK = 1280;
     protected static final float FWD_START_DISTANCE_SUPER_TANK = 2048;
 
-    protected final GameModelInstance inst;
+    protected GameModelInstance inst;
     protected final GameModelInstance extra;
 
     public final Vector3 pos = new Vector3();
@@ -64,14 +60,14 @@ public abstract class BaseTank {
 
     protected abstract void updateTank(GameContext ctx, float dt);
 
-    public void render(ModelBatch modelBatch, Environment environment) {
+    public void render(GameContext ctx, ModelBatch modelBatch, Environment environment) {
 
         if (!this.alive) {
             return;
         }
 
         modelBatch.render(this.inst, environment);
-        if (this.extra != null) {
+        if (this.extra != null && !ctx.isSuperTank()) {
             modelBatch.render(this.extra, environment);
         }
     }
@@ -103,7 +99,7 @@ public abstract class BaseTank {
 
         if (this.extra != null) {
             extra.transform.set(inst.transform)
-                    .translate(0, 0, -510f)
+                    .translate(0, 640, -512)
                     .rotate(Vector3.Y, radarFacing * 360f / ANGLE_STEPS);
         }
     }

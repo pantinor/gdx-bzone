@@ -76,7 +76,7 @@ public class TankExplosion {
 
         for (int i = 0; i < CHUNKS; i++) {
             Models.Mesh mesh = meshes[i % meshes.length];
-            GameModelInstance inst = Models.buildWireframeInstance(mesh.wf(), color, 1f);
+            GameModelInstance inst = Models.buildWireframeInstance(mesh, color, 1f);
             Piece p = new Piece(inst);
             p.size = computeHeight(mesh);
             tankPieces.add(p);
@@ -90,7 +90,7 @@ public class TankExplosion {
 
         for (int i = 0; i < CHUNKS; i++) {
             Models.Mesh mesh = meshes[i % meshes.length];
-            GameModelInstance inst = Models.buildWireframeInstance(mesh.wf(), color, 1f);
+            GameModelInstance inst = Models.buildWireframeInstance(mesh, color, 1f);
             Piece p = new Piece(inst);
             p.size = computeHeight(mesh);
             missilePieces.add(p);

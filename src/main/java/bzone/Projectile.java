@@ -1,7 +1,7 @@
 package bzone;
 
+import static bzone.BattleZone.PLAYER_Y;
 import static bzone.BattleZone.wrap16f;
-
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector3;
 import java.util.List;
@@ -11,7 +11,6 @@ public class Projectile {
     private static final float PROJECTILE_SPAWN_OFFSET = 140f;
     private static final float PROJECTILE_SPEED_PER_SEC = 15000f;
     private static final float PLAYER_HIT_RADIUS = 800f;
-    private static final float WORLD_Y = 0.5f;
     private static final float TTL_SECONDS = 3f;
 
     public final GameModelInstance inst;
@@ -89,13 +88,12 @@ public class Projectile {
         z = nz;
         applyTransform();
 
-        if (ctx.collisionChecker.collides(x, z)) {
+        if (ctx.hitsObstacle.hits(x, z)) {
             kill(null);
-            ctx.spatterSpawn.spawn(x, z);
             return;
         }
 
-        if (fromPlayer && ctx.hitChecker.hits(x, z)) {
+        if (fromPlayer && ctx.hitsEnemy.hits(x, z)) {
             kill(Sounds.Effect.EXPLOSION);
             return;
         }
@@ -116,7 +114,7 @@ public class Projectile {
 
     private void applyTransform() {
         float yawDeg = MathUtils.atan2(dx, dz) * MathUtils.radiansToDegrees;
-        inst.transform.idt().setToRotation(Vector3.Y, yawDeg).setTranslation(x, WORLD_Y, z);
+        inst.transform.idt().setToRotation(Vector3.Y, yawDeg).setTranslation(x, PLAYER_Y, z);
         inst.calculateTransforms();
     }
 
