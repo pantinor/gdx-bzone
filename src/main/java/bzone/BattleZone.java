@@ -97,6 +97,8 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
 
     @Override
     public void create() {
+        
+        Sounds.MUTE = true;
 
         FreeTypeFontGenerator generator = new FreeTypeFontGenerator(Gdx.files.classpath("assets/data/bzone-font.ttf"));
         FreeTypeFontGenerator.FreeTypeFontParameter parameter = new FreeTypeFontGenerator.FreeTypeFontParameter();
@@ -320,6 +322,7 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
                 saucer.spawn();
                 return true;
             case Input.Keys.NUM_7:
+                explosion.spawn(true, to16(cam.position.x + 6000), to16(cam.position.z + 6000));
                 return true;
             case Input.Keys.NUM_8:
                 return true;

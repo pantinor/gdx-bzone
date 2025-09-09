@@ -67,7 +67,7 @@ public class EngineSound {
     }
 
     public void update(float deltaSeconds) {
-        if (!playing || device == null) {
+        if (!playing || device == null || Sounds.MUTE) {
             return;
         }
 

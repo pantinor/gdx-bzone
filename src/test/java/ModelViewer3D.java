@@ -75,9 +75,9 @@ public class ModelViewer3D extends ApplicationAdapter {
         gridModel = buildXZGrid(64 /*lines*/, 1000 /*spacing*/, new Color(0.35f, 0.34f, 0.35f, 1f));
         gridInstance = new ModelInstance(gridModel, new Matrix4().idt());
 
-        ba = Models.buildWireframeInstance(Models.Mesh.SLOW_TANK.wf(), Color.GREEN, 1);
-        ttle = Models.buildWireframeInstance(Models.Mesh.SUPER_TANK.wf(), Color.GREEN, 1);
-        zone = Models.buildWireframeInstance(Models.Mesh.GIR_DRAXON.wf(), Color.GREEN, 1);
+        ba = Models.buildWireframeInstance(Models.Mesh.SLOW_TANK, Color.GREEN, 1);
+        ttle = Models.buildWireframeInstance(Models.Mesh.SUPER_TANK, Color.GREEN, 1);
+        zone = Models.buildWireframeInstance(Models.Mesh.GIR_DRAXON, Color.GREEN, 1);
 
         stage = new Stage(new ScreenViewport());
         skin = makeMinimalSkin();

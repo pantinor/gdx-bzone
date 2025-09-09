@@ -37,12 +37,15 @@ public class Sounds {
     }
 
     private static final float VOLUME = 1f;
+    public static boolean MUTE;
 
     public static void play(Effect s) {
-        if (s.isLooping()) {
-            s.sound.loop(VOLUME);
-        } else {
-            s.sound.play(VOLUME);
+        if (!MUTE) {
+            if (s.isLooping()) {
+                s.sound.loop(VOLUME);
+            } else {
+                s.sound.play(VOLUME);
+            }
         }
     }
 
