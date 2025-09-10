@@ -12,8 +12,8 @@ public class Prowler extends BaseTank {
 
     private static final int FLANK_DEG = 90;   // ideal offset from player
     private static final int FLANK_ARC_TOL_DEG = 20;   // fire when within ±20°
-    private static final int FLANK_SWAP_MIN_FR = 40;   // frames (≈0.67s @60fps)
-    private static final int FLANK_SWAP_MAX_FR = 72;   // frames (≈1.2s)
+    private static final int FLANK_SWAP_MIN_FR = 120;   // frames (≈0.67s @60fps)
+    private static final int FLANK_SWAP_MAX_FR = 200;   // frames (≈1.2s)
 
     private static final float RANGE_MIN = 1024f;  // too close → bias away
     private static final float RANGE_MAX = 3072f;  // too far → press in

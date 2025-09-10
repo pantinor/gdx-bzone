@@ -11,6 +11,8 @@ public class GameContext {
     public int lives = 3;
     public boolean alive = true;
     public int missileCount = 0;
+    public int inactivityCount = 0;
+    public int saucer_ttl = 0;
 
     public CollisionChecker collisionChecker = (x, z) -> false;
     public HitChecker hitsEnemy = (x, z) -> false;

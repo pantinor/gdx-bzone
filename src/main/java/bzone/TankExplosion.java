@@ -1,5 +1,6 @@
 package bzone;
 
+import static bzone.BattleZone.nearestWrappedPos;
 import bzone.Models.Wireframe;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g3d.Environment;
@@ -9,8 +10,11 @@ import com.badlogic.gdx.math.Vector3;
 import java.util.ArrayList;
 import java.util.List;
 import bzone.GameContext.TankSpawn;
+import com.badlogic.gdx.graphics.Camera;
+import com.badlogic.gdx.math.Matrix4;
 
 public class TankExplosion {
+    private static final Vector3 TMP1 = new Vector3();
 
     private static final int CHUNKS = 6;
 
@@ -38,9 +42,9 @@ public class TankExplosion {
         boolean grounded = false;
         float groundedTime = 0f;
         float size = 0.2f;
-        final ModelInstance inst;
+        final GameModelInstance inst;
 
-        Piece(ModelInstance inst) {
+        Piece(GameModelInstance inst) {
             this.inst = inst;
         }
 
@@ -255,12 +259,18 @@ public class TankExplosion {
         }
     }
 
-    public void render(ModelBatch batch, Environment env) {
+    public void render(Camera cam, ModelBatch batch, Environment env) {
         if (finished) {
             return;
         }
         for (Piece p : pieces) {
-            batch.render(p.inst, env);
+            nearestWrappedPos(p.inst, cam.position.x, cam.position.z, TMP1);
+            if (cam.frustum.pointInFrustum(TMP1)) {
+                p.inst.transform.val[Matrix4.M03] = TMP1.x;
+                p.inst.transform.val[Matrix4.M13] = TMP1.y;
+                p.inst.transform.val[Matrix4.M23] = TMP1.z;
+                batch.render(p.inst, env);
+            }
         }
     }
 

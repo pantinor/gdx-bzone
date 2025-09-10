@@ -1,10 +1,13 @@
 package bzone;
 
+import static bzone.BattleZone.nearestWrappedPos;
 import static bzone.BattleZone.to16;
 import static bzone.BattleZone.wrapDelta16;
+import com.badlogic.gdx.graphics.Camera;
 import com.badlogic.gdx.graphics.g3d.Environment;
 import com.badlogic.gdx.graphics.g3d.ModelBatch;
 import com.badlogic.gdx.math.MathUtils;
+import com.badlogic.gdx.math.Matrix4;
 import com.badlogic.gdx.math.Vector3;
 
 public class Saucer {
@@ -25,6 +28,8 @@ public class Saucer {
     private float courseTimer = 0f;
     private final Vector3 vel = new Vector3();
     private float spawnCooldown = 0f;
+
+    private static final Vector3 TMP1 = new Vector3();
 
     public Saucer(GameModelInstance inst) {
         this.inst = inst;
@@ -98,10 +103,16 @@ public class Saucer {
         inst.transform.setToTranslation(wx, pos.y, wz);
     }
 
-    public void render(ModelBatch modelBatch, Environment environment) {
+    public void render(Camera cam, ModelBatch modelBatch, Environment environment) {
         if (!this.active) {
             return;
         }
-        modelBatch.render(this.inst, environment);
+        nearestWrappedPos(this.inst, cam.position.x, cam.position.z, TMP1);
+        if (cam.frustum.pointInFrustum(TMP1)) {
+            this.inst.transform.val[Matrix4.M03] = TMP1.x;
+            this.inst.transform.val[Matrix4.M13] = TMP1.y;
+            this.inst.transform.val[Matrix4.M23] = TMP1.z;
+            modelBatch.render(this.inst, environment);
+        }
     }
 }

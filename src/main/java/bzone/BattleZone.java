@@ -27,8 +27,8 @@ import com.badlogic.gdx.math.Vector3;
 import java.util.ArrayList;
 import java.util.List;
 import com.badlogic.gdx.math.Matrix4;
+import com.badlogic.gdx.math.collision.BoundingBox;
 import com.badlogic.gdx.utils.Timer;
-import java.util.concurrent.ThreadLocalRandom;
 
 public class BattleZone implements ApplicationListener, InputProcessor, ControllerListener {
 
@@ -43,9 +43,6 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
     public static final int SCREEN_HEIGHT = 480 * 2;
 
     private static final Vector3 TMP1 = new Vector3();
-    private static final Vector3 TMP2 = new Vector3();
-    private static final Vector3 TMP3 = new Vector3();
-    private static final Matrix4 MAT1 = new Matrix4();
 
     /**
      * Size of the toroidal world in the original 16-bit ROM coordinate space.
@@ -97,8 +94,8 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
 
     @Override
     public void create() {
-        
-        Sounds.MUTE = true;
+
+        Sounds.MUTE = false;
 
         FreeTypeFontGenerator generator = new FreeTypeFontGenerator(Gdx.files.classpath("assets/data/bzone-font.ttf"));
         FreeTypeFontGenerator.FreeTypeFontParameter parameter = new FreeTypeFontGenerator.FreeTypeFontParameter();
@@ -140,6 +137,7 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
         GameModelInstance logozone = Models.buildWireframeInstance(Models.Mesh.LOGO_ZONE, Color.RED, 1);
 
         this.tank = new Tank(tm, stm, rm);
+        //this.tank = new Prowler(tm, rm);
         this.missile = new Missile(mm);
         this.saucer = new Saucer(sm);
 
@@ -150,6 +148,7 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
         context.hitsObstacle = this::hitsObstacle;
         context.tankSpawn = this::tankSpawn;
         context.playerSpawn = this::playerSpawn;
+        context.saucer_ttl = MathUtils.random(12, 15) * 100;
 
         randomSpawn(cam.position, context);
         randomSpawn(this.tank.pos, context);
@@ -221,6 +220,10 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
         context.playerX = cam.position.x;
         context.playerZ = cam.position.z;
         context.nmiCount = ++this.nmiCount;
+        context.saucer_ttl--;
+        if (context.inactivityCount != 1200) {
+            context.inactivityCount = Math.min(1200, context.inactivityCount + 1);
+        }
 
         context.hdFromCam = (MathUtils.atan2(cam.direction.x, cam.direction.z) * MathUtils.radiansToDegrees + 360f) % 360f;
         float hd = (headingDeg % 360f + 360f) % 360f;
@@ -242,17 +245,28 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
         drawObstacles(modelBatch);
 
         if (tankProjectile.active) {
-            modelBatch.render(tankProjectile.inst, environment);
+            nearestWrappedPos(tankProjectile.inst, cam.position.x, cam.position.z, TMP1);
+            if (cam.frustum.pointInFrustum(TMP1)) {
+                tankProjectile.inst.transform.val[Matrix4.M03] = TMP1.x;
+                tankProjectile.inst.transform.val[Matrix4.M13] = TMP1.y;
+                tankProjectile.inst.transform.val[Matrix4.M23] = TMP1.z;
+                modelBatch.render(tankProjectile.inst, environment);
+            }
         }
         if (playerProjectile.active) {
-            modelBatch.render(playerProjectile.inst, environment);
+            nearestWrappedPos(playerProjectile.inst, cam.position.x, cam.position.z, TMP1);
+            if (cam.frustum.pointInFrustum(TMP1)) {
+                playerProjectile.inst.transform.val[Matrix4.M03] = TMP1.x;
+                playerProjectile.inst.transform.val[Matrix4.M13] = TMP1.y;
+                playerProjectile.inst.transform.val[Matrix4.M23] = TMP1.z;
+                modelBatch.render(playerProjectile.inst, environment);
+            }
         }
 
-        tank.render(context, modelBatch, environment);
-        missile.render(modelBatch, environment);
-        saucer.render(modelBatch, environment);
-
-        explosion.render(modelBatch, environment);
+        tank.render(cam, context, modelBatch, environment);
+        missile.render(cam, modelBatch, environment);
+        saucer.render(cam, modelBatch, environment);
+        explosion.render(cam, modelBatch, environment);
 
         if (title != null) {
             title.render(modelBatch, environment);
@@ -278,6 +292,17 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
         batch.begin();
         font.draw(batch, "SCORE  " + context.playerScore, 800, SCREEN_HEIGHT - 80);
         batch.end();
+
+        if (context.playerScore > 10000 && context.inactivityCount == 1200) {
+            randomSpawnDistantInView(context, this.missile.pos, 6000f);
+            missile.spawn(context);
+            context.inactivityCount = 0;
+        }
+        if (context.saucer_ttl == 0) {
+            context.saucer_ttl = MathUtils.random(12, 15) * 100;
+            randomSpawnDistantInView(context, this.saucer.pos, WORLD_Y);
+            saucer.spawn();
+        }
     }
 
     @Override
@@ -300,17 +325,17 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
                 return true;
 
             case Input.Keys.NUM_1:
-                context.playerScore = 1;
+                //context.playerScore = 1;
                 return true;
             case Input.Keys.NUM_2:
-                context.playerScore = -1;
+                //context.playerScore = -1;
                 return true;
             case Input.Keys.NUM_3:
-                context.playerScore = 0;
+                //context.playerScore = 0;
                 return true;
             case Input.Keys.NUM_4:
-                randomSpawnDistantInView(context, this.missile.pos, 6000f);
-                missile.spawn(context);
+                //randomSpawnDistantInView(context, this.missile.pos, 6000f);
+                //missile.spawn(context);
                 return true;
             case Input.Keys.SPACE:
                 if (context.alive) {
@@ -318,11 +343,11 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
                 }
                 return true;
             case Input.Keys.NUM_6:
-                randomSpawnDistantInView(context, this.saucer.pos, WORLD_Y);
-                saucer.spawn();
+                //randomSpawnDistantInView(context, this.saucer.pos, WORLD_Y);
+                //saucer.spawn();
                 return true;
             case Input.Keys.NUM_7:
-                explosion.spawn(true, to16(cam.position.x + 6000), to16(cam.position.z + 6000));
+                //explosion.spawn(true, to16(cam.position.x + 6000), to16(cam.position.z + 6000));
                 return true;
             case Input.Keys.NUM_8:
                 return true;
@@ -565,13 +590,18 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
     }
 
     private void drawObstacles(ModelBatch batch) {
-        for (GameModelInstance inst : obstacles) {
+        for (int i = 0, n = obstacles.size(); i < n; i++) {
+            GameModelInstance inst = obstacles.get(i);
             nearestWrappedPos(inst, cam.position.x, cam.position.z, TMP1);
+
             if (!cam.frustum.pointInFrustum(TMP1)) {
                 continue;
             }
-            MAT1.set(inst.transform).setTranslation(TMP1);
-            inst.transform.set(MAT1);
+
+            inst.transform.val[Matrix4.M03] = TMP1.x; // x
+            inst.transform.val[Matrix4.M13] = TMP1.y; // y
+            inst.transform.val[Matrix4.M23] = TMP1.z; // z
+
             batch.render(inst, environment);
         }
     }
@@ -646,6 +676,13 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
     private void tankSpawn() {
         this.tank.alive = true;
         Sounds.play(Sounds.Effect.SPAWN);
+
+        if (context.playerScore > 10000) {
+            if (MathUtils.random(1, 3) == 1) {
+                randomSpawnDistantInView(context, this.missile.pos, 6000f);
+                missile.spawn(context);
+            }
+        }
     }
 
     private void playerSpawn() {
@@ -666,19 +703,23 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
 
     private boolean touches(GameModelInstance inst, float x, float z) {
         nearestWrappedPos(inst, x, z, TMP1);
-        TMP2.set(x - TMP1.x, 0f, z - TMP1.z);
+        final float dx = x - TMP1.x;
+        final float dz = z - TMP1.z;
 
-        MAT1.set(inst.transform).inv();
-        TMP2.rot(MAT1);
+        final float[] m = inst.transform.val;
+        float lx = m[Matrix4.M00] * dx + m[Matrix4.M20] * dz;
+        float lz = m[Matrix4.M02] * dx + m[Matrix4.M22] * dz;
 
-        inst.localBounds.getCenter(TMP3);
-        float lx = TMP2.x - TMP3.x;
-        float lz = TMP2.z - TMP3.z;
+        final BoundingBox b = inst.localBounds;
+        final float cx = (b.min.x + b.max.x) * 0.5f;
+        final float cz = (b.min.z + b.max.z) * 0.5f;
+        final float hx = (b.max.x - b.min.x) * 0.5f;
+        final float hz = (b.max.z - b.min.z) * 0.5f;
 
-        float hx = 0.5f * inst.localBounds.getWidth();
-        float hz = 0.5f * inst.localBounds.getDepth();
+        lx -= cx;
+        lz -= cz;
 
-        return Math.abs(lx) <= hx && Math.abs(lz) <= hz;
+        return (lx >= -hx && lx <= hx && lz >= -hz && lz <= hz);
     }
 
     public static void nearestWrappedPos(GameModelInstance inst, float x, float z, Vector3 out) {
@@ -719,14 +760,8 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
         return Math.round(v) & 0xFFFF;
     }
 
-    private static int rand8() {
-        return ThreadLocalRandom.current().nextInt(256);
-    }
-
     private static void randomSpawn(Vector3 pos, GameContext ctx) {
-        while (true) {
-            //int rx = ((rand8() & 0xFF) << 8) | (rand8() & 0xFF);
-            //int rz = ((rand8() & 0xFF) << 8) | (rand8() & 0xFF);
+        for (int i = 0; i < 5; i++) {
             float rx = ctx.playerX + MathUtils.random(19000, 31000) * MathUtils.randomSign();
             float rz = ctx.playerZ + MathUtils.random(19000, 31000) * MathUtils.randomSign();
             float x = wrap16f((float) rx);
@@ -738,6 +773,8 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
                 pos.z = z;
                 return;
             }
+            //fallback
+            pos.set(wrap16f(ctx.playerX + 31000), WORLD_Y, wrap16f(ctx.playerZ));
         }
     }
 

@@ -52,6 +52,9 @@ public class Projectile {
         if (active) {
             return;
         }
+        
+        ctx.inactivityCount = 0;
+        
         float yawRad = ctx.hdFromCam * MathUtils.degreesToRadians;
         spawn(wrap16f(ctx.playerX), wrap16f(ctx.playerZ), yawRad);
     }

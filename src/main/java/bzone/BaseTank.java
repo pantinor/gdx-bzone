@@ -1,15 +1,19 @@
 package bzone;
 
+import static bzone.BattleZone.nearestWrappedPos;
 import static bzone.BattleZone.to16;
 import static bzone.BattleZone.wrapDelta16;
+import com.badlogic.gdx.graphics.Camera;
 import com.badlogic.gdx.graphics.g3d.Environment;
 import com.badlogic.gdx.graphics.g3d.ModelBatch;
 import com.badlogic.gdx.math.MathUtils;
+import com.badlogic.gdx.math.Matrix4;
 import com.badlogic.gdx.math.Vector3;
 
 public abstract class BaseTank {
 
     public static final int ANGLE_STEPS = 256;
+    public static final int SPAWN_PROTECTION = 600;
 
     protected static final int RADAR_SPIN = 4;
     protected static final int CLOSE_FIRING_ANGLE = 16;
@@ -29,6 +33,7 @@ public abstract class BaseTank {
 
     public final Vector3 pos = new Vector3();
     protected final Vector3 savedPos = new Vector3();
+    private static final Vector3 TMP1 = new Vector3();
 
     public boolean alive = true;
     public int facing;                     // 0..255
@@ -49,8 +54,8 @@ public abstract class BaseTank {
             return;
         }
 
-        if (ctx.spawnProtected != 600) {
-            ctx.spawnProtected = Math.min(600, ctx.spawnProtected + 1);
+        if (ctx.spawnProtected != SPAWN_PROTECTION) {
+            ctx.spawnProtected = Math.min(SPAWN_PROTECTION, ctx.spawnProtected + 1);
         }
 
         updateTank(ctx, dt);
@@ -60,15 +65,28 @@ public abstract class BaseTank {
 
     protected abstract void updateTank(GameContext ctx, float dt);
 
-    public void render(GameContext ctx, ModelBatch modelBatch, Environment environment) {
+    public void render(Camera cam, GameContext ctx, ModelBatch modelBatch, Environment environment) {
 
         if (!this.alive) {
             return;
         }
 
-        modelBatch.render(this.inst, environment);
+        nearestWrappedPos(this.inst, cam.position.x, cam.position.z, TMP1);
+        if (cam.frustum.pointInFrustum(TMP1)) {
+            this.inst.transform.val[Matrix4.M03] = TMP1.x;
+            this.inst.transform.val[Matrix4.M13] = TMP1.y;
+            this.inst.transform.val[Matrix4.M23] = TMP1.z;
+            modelBatch.render(this.inst, environment);
+        }
+
         if (this.extra != null && !ctx.isSuperTank()) {
-            modelBatch.render(this.extra, environment);
+            nearestWrappedPos(this.extra, cam.position.x, cam.position.z, TMP1);
+            if (cam.frustum.pointInFrustum(TMP1)) {
+                this.extra.transform.val[Matrix4.M03] = TMP1.x;
+                this.extra.transform.val[Matrix4.M13] = TMP1.y;
+                this.extra.transform.val[Matrix4.M23] = TMP1.z;
+                modelBatch.render(this.extra, environment);
+            }
         }
     }
 
@@ -105,10 +123,10 @@ public abstract class BaseTank {
     }
 
     protected void tryShootPlayer(GameContext ctx) {
-        if (ctx.spawnProtected < 600) {
+        if (ctx.spawnProtected < SPAWN_PROTECTION) {
             return;
         }
-        if (ctx.playerScore < 2000 && ctx.spawnProtected != 600) {
+        if (ctx.playerScore < 2000 && ctx.spawnProtected != SPAWN_PROTECTION) {
             return;
         }
         int diff = Math.abs(signed8(calcAngleToPlayer(ctx) - this.facing));

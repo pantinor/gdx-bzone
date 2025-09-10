@@ -13,7 +13,6 @@ import com.badlogic.gdx.graphics.g3d.*;
 import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute;
 import com.badlogic.gdx.graphics.g3d.environment.DirectionalLight;
 import com.badlogic.gdx.graphics.g3d.utils.CameraInputController;
-import com.badlogic.gdx.math.Vector3;
 
 public class TankExplosionTest extends ApplicationAdapter implements InputProcessor {
 
@@ -67,7 +66,7 @@ public class TankExplosionTest extends ApplicationAdapter implements InputProces
 
         modelBatch.begin(cam);
         modelBatch.render(gridInstance, environment);
-        explosion.render(modelBatch, environment);
+        explosion.render(cam, modelBatch, environment);
         modelBatch.end();
 
     }

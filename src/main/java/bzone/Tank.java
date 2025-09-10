@@ -117,21 +117,10 @@ public class Tank extends BaseTank {
                 return;
             }
 
-            // head 90° off the player
-            // the tank’s facing direction is stored in an 8-bit angle space (0–255, i.e. 256 steps around a circle).
-            // A full circle (360°) = 256 steps, so:
-            // 1 step ≈ 1.40625°
-            // 64 steps = 90°
             int ang = calcAngleToPlayer(ctx);
-
-            //XOR produces a perfect ±90° offset from the target, depending on the current quadrant:
-            //If the angle is pointing, say, North (0), XOR with 64 → East (90°).
-            //If it’s already East (64), XOR with 64 → North (0°).
-            //If South (128), XOR → West (192).
-            //If West (192), XOR → South (128).
-            //So this one bit-flip always pivots the direction exactly perpendicular (90°) to the target vector, 
-            //but toggles between left/right depending on where the player is.
-            this.turnTo = u8(ang ^ 64);
+            int offset = 64; // 90°
+            boolean left = ((ctx.nmiCount & 1L) == 0L);
+            turnTo = u8(ang + (left ? -offset : offset));
 
             this.reverseFlags &= ~0x01;
             this.moveCounter = NEW_HEADING_FRAMES + JIT;

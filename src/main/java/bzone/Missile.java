@@ -1,11 +1,14 @@
 package bzone;
 
+import static bzone.BattleZone.nearestWrappedPos;
 import static bzone.BattleZone.to16;
 import static bzone.BattleZone.wrapDelta16;
 import static bzone.Tank.ANGLE_STEPS;
+import com.badlogic.gdx.graphics.Camera;
 import com.badlogic.gdx.graphics.g3d.Environment;
 import com.badlogic.gdx.graphics.g3d.ModelBatch;
 import com.badlogic.gdx.math.MathUtils;
+import com.badlogic.gdx.math.Matrix4;
 import com.badlogic.gdx.math.Vector3;
 
 public class Missile {
@@ -36,7 +39,8 @@ public class Missile {
     public final GameModelInstance inst;
 
     public final Vector3 pos = new Vector3();
-
+    private static final Vector3 TMP1 = new Vector3();
+    
     private int facing;
     private float speed = BASE_SPEED;
     public boolean active = false;
@@ -81,11 +85,18 @@ public class Missile {
         Sounds.play(Sounds.Effect.MISSILE_MAX);
     }
 
-    public void render(ModelBatch modelBatch, Environment environment) {
+    public void render(Camera cam, ModelBatch modelBatch, Environment environment) {
         if (!active) {
             return;
         }
-        modelBatch.render(this.inst, environment);
+
+        nearestWrappedPos(this.inst, cam.position.x, cam.position.z, TMP1);
+        if (cam.frustum.pointInFrustum(TMP1)) {
+            this.inst.transform.val[Matrix4.M03] = TMP1.x;
+            this.inst.transform.val[Matrix4.M13] = TMP1.y;
+            this.inst.transform.val[Matrix4.M23] = TMP1.z;
+            modelBatch.render(this.inst, environment);
+        }
     }
 
     public void update(GameContext ctx, float dt) {
