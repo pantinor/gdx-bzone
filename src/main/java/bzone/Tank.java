@@ -9,8 +9,8 @@ public class Tank extends BaseTank {
     final GameModelInstance slowTank;
     final GameModelInstance superTank;
 
-    public Tank(GameModelInstance slowTank, GameModelInstance superTank, GameModelInstance radar) {
-        super(slowTank, radar);
+    public Tank(GameModelInstance slowTank, GameModelInstance superTank, GameModelInstance radar, Projectile projectile) {
+        super(slowTank, radar, projectile);
         this.slowTank = slowTank;
         this.superTank = superTank;
     }

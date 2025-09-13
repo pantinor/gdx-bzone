@@ -1,42 +1,67 @@
 package bzone;
 
+import static bzone.BattleZone.to16;
+import static bzone.BattleZone.wrapDelta16;
 import com.badlogic.gdx.math.MathUtils;
 
 /**
- * ProwlerTank — flanker/ambusher AI. Behavior: - Maintains a ±90° flank
- * relative to the player; swaps side on a timer. - Fires only when the heading
- * is near the ideal flank arc. - Keeps to a medium standoff band; collision
- * enters reverse-recovery (in BaseTank).
+ * Prowler — mobile tank with a “prowl/orbit → dart in/out” behavior adapted
+ * from the ROM’s ground-mover patterns, but kept within this engine’s BaseTank
+ * helpers.
+ *
+ * High level: - Prefers to ORBIT the player at a target radius, flipping orbit
+ * direction from time to time. - When far, it CHARGEs toward the player; when
+ * too close, it BREAKs off with a wide oblique turn (135°) to regain spacing. -
+ * Strafes at ±90° relative to the player more often than a normal tank. -
+ * Shoots using the strict BaseTank tryShootPlayer gate; firing rate emerges
+ * from how often alignment is achieved during turns.
  */
 public class Prowler extends BaseTank {
 
-    private static final int FLANK_DEG = 90;   // ideal offset from player
-    private static final int FLANK_ARC_TOL_DEG = 20;   // fire when within ±20°
-    private static final int FLANK_SWAP_MIN_FR = 120;   // frames (≈0.67s @60fps)
-    private static final int FLANK_SWAP_MAX_FR = 200;   // frames (≈1.2s)
+    // Model
+    final GameModelInstance tankModel;
 
-    private static final float RANGE_MIN = 1024f;  // too close → bias away
-    private static final float RANGE_MAX = 3072f;  // too far → press in
+    // Tunables (feel free to tweak until it “feels” right)
+    private static final float PROWLER_SPEED_MULT = 1.35f;   // a touch faster than slow tank
+    private static final float FORWARD_START_DIST = 1400f;   // starts moving forward a bit earlier
+    private static final int STRAFE_90_STEPS = 64;      // 90° in 256-step circle
+    private static final int OBLIQUE_135_STEPS = 96;      // 135° for break-aways
+    private static final int MICRO_WOBBLE_MAX = 24;      // up to ~33.75°
+    private static final int RAD_NEAR = 2800;    // “too close” radius
+    private static final int RAD_TARGET = 4800;    // desired orbit radius
+    private static final int RAD_FAR = 9000;    // “too far” (encourage charge)
 
-    private int flankSide = MathUtils.randomBoolean() ? 0 : 1;
-    private int flankSwapTimer = MathUtils.random(FLANK_SWAP_MIN_FR, FLANK_SWAP_MAX_FR);
+    // Plan/state
+    private enum Plan {
+        ORBIT, CHARGE, BREAK, STRAFE, HOLD
+    }
+    private Plan plan = Plan.ORBIT;
+    private int orbitDir = MathUtils.randomBoolean() ? +1 : -1;   // +left or -right in step-space
 
-    public Prowler(GameModelInstance inst, GameModelInstance radar) {
-        super(inst, radar);
+    public Prowler(GameModelInstance tankModel, Projectile projectile) {
+        super(tankModel, null, projectile);
+        this.tankModel = tankModel;
+        this.facing = MathUtils.random(0, ANGLE_STEPS - 1);
+        this.radarFacing = this.facing;
+        this.turnTo = this.facing;
+        this.moveCounter = 1; // trigger immediate plan selection on first update
     }
 
     @Override
     protected void updateTank(GameContext ctx, float dt) {
 
+        this.inst = this.tankModel;
+
         if (this.moveCounter > 0) {
             this.moveCounter--;
         }
 
-        if (--flankSwapTimer <= 0) {
-            flankSide ^= 1;
-            flankSwapTimer = MathUtils.random(FLANK_SWAP_MIN_FR, FLANK_SWAP_MAX_FR);
-        }
+        this.savePos();
 
+        // spin the radar
+        this.radarFacing = u8(this.radarFacing + RADAR_SPIN);
+
+        // --- Reverse handling (same contract as Tank) ---
         if ((this.reverseFlags & 0x01) != 0) {
             moveBackward(ctx, dt);
             if ((this.reverseFlags & 0x02) != 0) {
@@ -44,78 +69,141 @@ public class Prowler extends BaseTank {
             } else {
                 rotateRight(dt);
             }
-
             if (this.moveCounter == 0) {
                 this.reverseFlags &= ~0x03;
-                this.turnTo = this.facing;                
-                this.moveCounter = NEW_HEADING_FRAMES;
+                this.turnTo = this.facing;
+                this.moveCounter = FORWARD_TIME_FRAMES;
             }
-            return; 
+            return;
         }
 
+        // Re-plan when the current heading timer expires
         if (this.moveCounter == 0) {
-            final int base = calcAngleToPlayer(ctx);
-            final int offset = degToSteps(FLANK_DEG);      // 90° → 64 steps
-            this.turnTo = u8(base + (flankSide == 0 ? +offset : -offset));
-            this.moveCounter = NEW_HEADING_FRAMES;
+            chooseProwlerPlan(ctx);
         }
 
-        final int delta = signed8((this.facing - this.turnTo) & 0xFF);
-        if (delta != 0) {
-            if (delta > 0) {
+        // Turn toward the current heading
+        int delta = signed8((this.facing - this.turnTo) & 0xFF);
+        int absDelta = Math.abs(delta);
+        if (absDelta >= CLOSE_FIRING_ANGLE) {
+            // accelerate turning when far off, opportunistically firing like the original
+            if (delta >= 0) {
+                rotateRight(dt);
+                tryShootPlayer(ctx);
+                rotateRight(dt);
+                tryShootPlayer(ctx);
+            } else {
+                rotateLeft(dt);
+                tryShootPlayer(ctx);
+                rotateLeft(dt);
+                tryShootPlayer(ctx);
+            }
+        } else if (absDelta != 0) {
+            if (delta >= 0) {
                 rotateRight(dt);
             } else {
                 rotateLeft(dt);
             }
         }
 
-        tryFireOnFlank(ctx);
+        // Precise fire once per frame if neatly aligned
+        tryShootPlayer(ctx);
 
-        final float dist = distanceWrapped16(ctx.playerX, ctx.playerZ, this.pos.x, this.pos.z);
-        if (dist > RANGE_MAX) {
-            // far → straightforward press toward maintained flank
-            forward(ctx, /*mult*/ 1.25f, dt);
-        } else if (dist < RANGE_MIN) {
-            // too close → bias heading 180° from player slightly to step out
-            final int away = u8(calcAngleToPlayer(ctx) + 128);
-            steerOnceToward(away, dt);
-            forward(ctx, /*mult*/ 1.0f, dt);
+        // Distance-gated forward motion with a prowler bias: moves more often
+        float dx16 = wrapDelta16(to16(ctx.playerX) - to16(this.pos.x));
+        float dz16 = wrapDelta16(to16(ctx.playerZ) - to16(this.pos.z));
+        float dist = (float) Math.sqrt(dx16 * dx16 + dz16 * dz16);
+
+        boolean advance;
+        switch (plan) {
+            case HOLD:
+                advance = dist > RAD_NEAR; // only creep if we're crowding the player
+                break;
+            case BREAK:
+                advance = true; // get out quickly
+                break;
+            default:
+                advance = (dist >= FORWARD_START_DIST) || absDelta <= 8;
+        }
+
+        if (advance) {
+            forward(ctx, PROWLER_SPEED_MULT, dt);
+        }
+    }
+
+    /**
+     * Decide what to do next based on distance and jittered timing.
+     */
+    private void chooseProwlerPlan(GameContext ctx) {
+        int JIT = (int) (ctx.nmiCount & 0x03L);
+        int RJIT = (int) ((ctx.nmiCount >> 1) & 0x03L);
+
+        // Occasionally perform a reverse like the base tank
+        if ((ctx.nmiCount & 7L) == 0L) {
+            this.reverseFlags |= 0x01 | (MathUtils.randomBoolean() ? 0x02 : 0x00);
+            this.moveCounter = REVERSE_TIME_FRAMES + RJIT;
+            return;
+        }
+
+        int angToPlayer = calcAngleToPlayer(ctx);
+
+        float dx16 = wrapDelta16(to16(ctx.playerX) - to16(this.pos.x));
+        float dz16 = wrapDelta16(to16(ctx.playerZ) - to16(this.pos.z));
+        float dist = (float) Math.sqrt(dx16 * dx16 + dz16 * dz16);
+
+        // Flip orbit side now and then
+        if ((ctx.nmiCount & 0x1FL) == 0L) {
+            orbitDir = -orbitDir;
+        }
+
+        int roll = MathUtils.random(0, 255);
+
+        if (dist > RAD_FAR) {
+            // Very far: mostly charge, sometimes strafe to avoid long straight lines
+            if (roll < 208) {
+                plan = Plan.CHARGE;
+                this.turnTo = angToPlayer;
+            } else {
+                plan = Plan.STRAFE;
+                this.turnTo = u8(angToPlayer + orbitDir * STRAFE_90_STEPS);
+            }
+            this.moveCounter = NEW_HEADING_FRAMES + JIT;
+            this.reverseFlags &= ~0x01;
+            return;
+        }
+
+        if (dist < RAD_NEAR) {
+            // Too close: break off on a steep oblique away from the player
+            plan = Plan.BREAK;
+            boolean awayLeft = (orbitDir > 0);
+            this.turnTo = u8(angToPlayer + (awayLeft ? -OBLIQUE_135_STEPS : +OBLIQUE_135_STEPS));
+            this.moveCounter = NEW_HEADING_FRAMES + (JIT << 1);
+            this.reverseFlags &= ~0x01;
+            return;
+        }
+
+        // Around the preferred radius: orbit with micro-wobble, mixed with strafes
+        if (roll < 160) {
+            plan = Plan.ORBIT;
+            int wobble = MathUtils.random(0, MICRO_WOBBLE_MAX);
+            int base = u8(angToPlayer + orbitDir * STRAFE_90_STEPS);
+            boolean neg = MathUtils.randomBoolean();
+            this.turnTo = u8(neg ? base - wobble : base + wobble);
+            this.moveCounter = NEW_HEADING_FRAMES + JIT;
+        } else if (roll < 208) {
+            plan = Plan.STRAFE;
+            this.turnTo = u8(angToPlayer + orbitDir * STRAFE_90_STEPS);
+            this.moveCounter = NEW_HEADING_FRAMES + JIT;
+        } else if (roll < 232) {
+            plan = Plan.HOLD; // brief aim window
+            this.turnTo = angToPlayer;
+            this.moveCounter = Math.max(8, NEW_HEADING_FRAMES / 2) + JIT;
         } else {
-            // in band → orbit around player to keep the flank pressure
-            final int around = u8(calcAngleToPlayer(ctx) + (flankSide == 0 ? +degToSteps(45) : -degToSteps(45)));
-            steerOnceToward(around, dt);
-            forward(ctx, /*mult*/ 1.0f, dt);
+            plan = Plan.CHARGE;
+            this.turnTo = angToPlayer;
+            this.moveCounter = NEW_HEADING_FRAMES + JIT;
         }
+
+        this.reverseFlags &= ~0x01;
     }
-
-    private void tryFireOnFlank(GameContext ctx) {
-        if (ctx.spawnProtected < 600) {
-            return;
-        }
-        if (ctx.playerScore < 2000 && ctx.spawnProtected != 600) {
-            return;
-        }
-
-        final int base = calcAngleToPlayer(ctx);
-        final int ideal = u8(base + (flankSide == 0 ? +degToSteps(FLANK_DEG) : -degToSteps(FLANK_DEG)));
-        final int errSteps = Math.abs(signed8((this.facing - ideal) & 0xFF));
-
-        if (errSteps <= degToSteps(FLANK_ARC_TOL_DEG)) {
-            ctx.shooter.shoot();
-        }
-    }
-
-    private void steerOnceToward(int target, float dt) {
-        final int d = signed8((this.facing - target) & 0xFF);
-        if (d == 0) {
-            return;
-        }
-        if (d > 0) {
-            rotateRight(dt);
-        } else {
-            rotateLeft(dt);
-        }
-    }
-
-
 }

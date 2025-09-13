@@ -17,7 +17,6 @@ public class GameContext {
     public CollisionChecker collisionChecker = (x, z) -> false;
     public HitChecker hitsEnemy = (x, z) -> false;
     public HitChecker hitsObstacle = (x, z) -> false;
-    public Shooter shooter = () -> {/* */ };
     public TankSpawn tankSpawn = () -> {/* */ };
     public PlayerSpawn playerSpawn = () -> {/* */ };
 
@@ -33,11 +32,6 @@ public class GameContext {
     public interface HitChecker {
 
         boolean hits(float x, float z);
-    }
-
-    public interface Shooter {
-
-        void shoot();
     }
 
     public interface PlayerSpawn {

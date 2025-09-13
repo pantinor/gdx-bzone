@@ -23,13 +23,14 @@ public abstract class BaseTank {
 
     protected static final float SUPER_SPEED_MULT = 2.0f;
     protected static final float FWD_SPEED_SLOW = 2800f;
-    protected static final float TURN_DEG_PER_SEC = 90f;
+    protected static final float TURN_DEG_PER_SEC = 30f;
 
     protected static final float FWD_START_DISTANCE_SLOW_TANK = 1280;
     protected static final float FWD_START_DISTANCE_SUPER_TANK = 2048;
 
     protected GameModelInstance inst;
     protected final GameModelInstance extra;
+    protected final Projectile projectile;
 
     public final Vector3 pos = new Vector3();
     protected final Vector3 savedPos = new Vector3();
@@ -43,9 +44,10 @@ public abstract class BaseTank {
     protected int reverseFlags;               // bit0: reversing, bit1: reverse turn dir (0=R,1=L)
     protected int turnTo;                     // target facing (0..255)
 
-    public BaseTank(GameModelInstance inst, GameModelInstance extra) {
+    public BaseTank(GameModelInstance inst, GameModelInstance extra, Projectile projectile) {
         this.inst = inst;
         this.extra = extra;
+        this.projectile = projectile;
     }
 
     public void update(GameContext ctx, float dt) {
@@ -133,7 +135,7 @@ public abstract class BaseTank {
         if (diff >= 2) {
             return;
         }
-        ctx.shooter.shoot();
+        this.projectile.spawnFromTank(this, ctx);
     }
 
     protected void stepForward(float spd) {

@@ -61,6 +61,7 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
 
     private static final float YAW_SPEED_DEG = 30f;
     private static final float MOVE_SPEED = 3200f;
+    private static final int MAX_INACTIVITY = 900;
 
     private boolean wDown, aDown, sDown, dDown, blocked;
     private boolean rstickFwd, rstickBck, lstickFwd, lstickBck;
@@ -81,8 +82,8 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
     private BaseTank tank;
     private Missile missile;
     private Saucer saucer;
-    private Projectile tankProjectile;
-    private Projectile playerProjectile;
+    private BaseTank flyer;
+    private Projectile tankProjectile, flyerProjectile, playerProjectile;
     private TankExplosion explosion;
     private final Spatter spatter = new Spatter();
     private Title title;
@@ -126,6 +127,15 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
 
         modelBatch = new ModelBatch();
 
+        GameModelInstance tankProj = Models.buildWireframeInstance(Models.Mesh.PROJECTILE, Color.RED, 1);
+        tankProjectile = new Projectile(tankProj);
+
+        GameModelInstance playerProj = Models.buildWireframeInstance(Models.Mesh.PROJECTILE, Color.YELLOW, 1);
+        playerProjectile = new Projectile(playerProj);
+
+        GameModelInstance flyerProj = Models.buildWireframeInstance(Models.Mesh.PROJECTILE, Color.ORANGE, 1);
+        flyerProjectile = new Projectile(flyerProj);
+
         GameModelInstance tm = Models.buildWireframeInstance(Models.Mesh.SLOW_TANK, Color.GREEN, 1);
         GameModelInstance stm = Models.buildWireframeInstance(Models.Mesh.SUPER_TANK, Color.GREEN, 1);
         GameModelInstance rm = Models.buildWireframeInstance(Models.Mesh.RADAR, Color.GREEN, 1);
@@ -136,8 +146,8 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
         GameModelInstance logottle = Models.buildWireframeInstance(Models.Mesh.LOGO_TTLE, Color.RED, 1);
         GameModelInstance logozone = Models.buildWireframeInstance(Models.Mesh.LOGO_ZONE, Color.RED, 1);
 
-        this.tank = new Tank(tm, stm, rm);
-        //this.tank = new Prowler(tm, rm);
+        this.tank = new Tank(tm, stm, rm, tankProjectile);
+        this.flyer = new Skimmer(flyerProjectile);
         this.missile = new Missile(mm);
         this.saucer = new Saucer(sm);
 
@@ -158,13 +168,6 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
 
         this.title = new Title(logoba, logottle, logozone);
         this.title.pos.set(cam.position.x, cam.position.y - 1000, cam.position.z);
-
-        GameModelInstance tankProj = Models.buildWireframeInstance(Models.Mesh.PROJECTILE, Color.YELLOW, 1);
-        tankProjectile = new Projectile(tankProj);
-        context.shooter = () -> tankProjectile.spawnFromTank(this.tank, context);
-
-        GameModelInstance playerProj = Models.buildWireframeInstance(Models.Mesh.PROJECTILE, Color.YELLOW, 1);
-        playerProjectile = new Projectile(playerProj);
 
         loadMapObstacles();
 
@@ -221,15 +224,17 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
         context.playerZ = cam.position.z;
         context.nmiCount = ++this.nmiCount;
         context.saucer_ttl--;
-        if (context.inactivityCount != 1200) {
-            context.inactivityCount = Math.min(1200, context.inactivityCount + 1);
+        if (context.inactivityCount != MAX_INACTIVITY) {
+            context.inactivityCount = Math.min(MAX_INACTIVITY, context.inactivityCount + 1);
         }
 
         context.hdFromCam = (MathUtils.atan2(cam.direction.x, cam.direction.z) * MathUtils.radiansToDegrees + 360f) % 360f;
         float hd = (headingDeg % 360f + 360f) % 360f;
 
         tank.update(context, dt);
+        flyer.update(context, dt);
         tankProjectile.update(context, obstacles, dt, false);
+        flyerProjectile.update(context, obstacles, dt, false);
         playerProjectile.update(context, obstacles, dt, true);
         missile.update(context, dt);
         saucer.update(context, dt);
@@ -253,6 +258,15 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
                 modelBatch.render(tankProjectile.inst, environment);
             }
         }
+        if (flyerProjectile.active) {
+            nearestWrappedPos(flyerProjectile.inst, cam.position.x, cam.position.z, TMP1);
+            if (cam.frustum.pointInFrustum(TMP1)) {
+                flyerProjectile.inst.transform.val[Matrix4.M03] = TMP1.x;
+                flyerProjectile.inst.transform.val[Matrix4.M13] = TMP1.y;
+                flyerProjectile.inst.transform.val[Matrix4.M23] = TMP1.z;
+                modelBatch.render(flyerProjectile.inst, environment);
+            }
+        }
         if (playerProjectile.active) {
             nearestWrappedPos(playerProjectile.inst, cam.position.x, cam.position.z, TMP1);
             if (cam.frustum.pointInFrustum(TMP1)) {
@@ -264,6 +278,7 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
         }
 
         tank.render(cam, context, modelBatch, environment);
+        flyer.render(cam, context, modelBatch, environment);
         missile.render(cam, modelBatch, environment);
         saucer.render(cam, modelBatch, environment);
         explosion.render(cam, modelBatch, environment);
@@ -293,7 +308,7 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
         font.draw(batch, "SCORE  " + context.playerScore, 800, SCREEN_HEIGHT - 80);
         batch.end();
 
-        if (context.playerScore > 10000 && context.inactivityCount == 1200) {
+        if (context.inactivityCount == MAX_INACTIVITY) {
             randomSpawnDistantInView(context, this.missile.pos, 6000f);
             missile.spawn(context);
             context.inactivityCount = 0;
@@ -512,7 +527,7 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
         sr.end();
         Gdx.gl.glLineWidth(1);
 
-        radarScreen.drawRadar2D(cam, sr, tank, missile, saucer, obstacles, dt);
+        radarScreen.drawRadar2D(cam, sr, tank, missile, saucer, flyer, obstacles, dt);
 
         if (context.lives > 0) {
             sr.begin(ShapeRenderer.ShapeType.Line);
@@ -656,6 +671,15 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
             tank.applyWrappedTransform(context);
             return true;
         }
+        if (this.flyer.alive && touches(this.flyer.inst, x, z) && this.flyer.pos.y < 800) {
+            this.flyer.alive = false;
+            context.playerScore += 1000;
+            spatter.spawn(to16(x), to16(z));
+            randomSpawn(this.flyer.pos, context);
+            this.flyer.pos.y = 0;
+            flyer.applyWrappedTransform(context);
+            return true;
+        }
         if (this.missile.active && touches(this.missile.inst, x, z)) {
             this.missile.active = false;
             context.playerScore += 2000;
@@ -682,6 +706,11 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
                 randomSpawnDistantInView(context, this.missile.pos, 6000f);
                 missile.spawn(context);
             }
+        }
+
+        if (MathUtils.random(1, 3) == 1 && !this.flyer.alive) {
+            randomSpawnDistantInView(context, this.flyer.pos, 0);
+            this.flyer.alive = true;
         }
     }
 
@@ -762,10 +791,12 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
 
     private static void randomSpawn(Vector3 pos, GameContext ctx) {
         for (int i = 0; i < 5; i++) {
-            float rx = ctx.playerX + MathUtils.random(19000, 31000) * MathUtils.randomSign();
-            float rz = ctx.playerZ + MathUtils.random(19000, 31000) * MathUtils.randomSign();
-            float x = wrap16f((float) rx);
-            float z = wrap16f((float) rz);
+            float HALF_ANGLE_DEG = 30f;
+            float angleDeg = ctx.hdFromCam - HALF_ANGLE_DEG + MathUtils.random(0f, 2f * HALF_ANGLE_DEG);
+            float angleRad = angleDeg * MathUtils.degreesToRadians;
+            float r = MathUtils.random(16000, 31000);
+            float x = wrap16f(ctx.playerX + MathUtils.sin(angleRad) * r);
+            float z = wrap16f(ctx.playerZ + MathUtils.cos(angleRad) * r);
 
             if (!ctx.collisionChecker.collides(x, z)) {
                 pos.x = x;
@@ -790,13 +821,4 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
         pos.z = z;
     }
 
-    private static void randomSpawnDistant(GameContext ctx, Vector3 pos, float y) {
-        float rx = ctx.playerX + MathUtils.random(29000, 31000) * MathUtils.randomSign();
-        float rz = ctx.playerZ + MathUtils.random(29000, 31000) * MathUtils.randomSign();
-        float x = wrap16f(rx);
-        float z = wrap16f(rz);
-        pos.x = x;
-        pos.y = y;
-        pos.z = z;
-    }
 }

@@ -17,8 +17,8 @@ public class Saucer {
     private static final float ROT_SPEED_DEG_PER_SEC = 360f / ROT_PERIOD_SECONDS;
     private static final float COURSE_MIN_SECONDS = 5;
     private static final float COURSE_MAX_SECONDS = 15;
-    private static final float SPEED_MIN = 500f;
-    private static final float SPEED_MAX = 1200f;
+    private static final float SPEED_MIN = 1500f;
+    private static final float SPEED_MAX = 3000f;
 
     public final GameModelInstance inst;
     public final Vector3 pos = new Vector3();

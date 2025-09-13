@@ -64,13 +64,19 @@ public class Models {
         ;
 
         private final Wireframe wireframe;
+        private final String text;
 
         Mesh(String text) {
             this.wireframe = wireframeFromString(text);
+            this.text = text;
         }
 
         public Wireframe wf() {
             return this.wireframe;
+        }
+
+        public String text() {
+            return text;
         }
 
     }
