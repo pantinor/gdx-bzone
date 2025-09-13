@@ -1,21 +1,11 @@
 package bzone;
 
+import static bzone.BattleZone.WORLD_WRAP_HALF_16BIT;
 import static bzone.BattleZone.to16;
 import static bzone.BattleZone.wrapDelta16;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.math.MathUtils;
 
-/**
- * Skimmer — ROM-inspired class-3 flier with smooth, banked turning.
- *
- * Key constraints (as requested): - **No reversing** (it’s flying). - **Ignores
- * obstacle collisions** (glides over terrain/objects). - **Cannot
- * stop-and-turn** like a tank: always in motion with smooth turns.
- *
- * ROM-flavored patterns: p0 WANDER : random glide with occasional small turns
- * [class-3] p1 PURSUE : glide toward the player [class-3] p2 DIVE : descend
- * toward ground briefly, then climb [class-3]
- */
 public class Skimmer extends BaseTank {
 
     final GameModelInstance skimmer, stinger;
@@ -28,26 +18,21 @@ public class Skimmer extends BaseTank {
     private static final int TURN_ACCEL_STEPS = 1;  // how quickly turnVel ramps
     private int turnVelSteps = 0;                        // signed; >0 rotates right, <0 rotates left
 
-    private static final int MICRO_TURN_MAX = 10;   // ~14°
-    private static final int ORBIT_OFF_STEPS = 64;   // 90° ring offset
-
-    private static final float DIVE_MAX_RANGE = 10000f;
-    private static final float DIVE_MIN_RANGE = 5000f;
-    private static final float RING_CENTER = 1000f;
-    private static final float RING_TOLERANCE = 2000f;
+    private static final int MICRO_TURN_MAX = 16;
+    private static final float DIVE_RANGE = 12000f;
+    private static final float RETREAT_RANGE = 2000f;
 
     private float alt = ALT_HOVER;
     private float targetAlt = ALT_HOVER;
     private static final float ALT_HOVER = 1500f;
-    private static final float ALT_DIVE = 700f;
+    private static final float ALT_DIVE = 500f;
     private static final float ALT_RATE_UP = 1200f;  // units/sec
     private static final float ALT_RATE_DN = 2000f;  // units/sec
 
     private enum Plan {
-        WANDER, PURSUE, DIVE
+        RETREAT, PURSUE, DIVE
     }
-    private Plan plan = Plan.WANDER;
-    private int orbitDir = MathUtils.randomBoolean() ? +1 : -1;
+    private Plan plan = Plan.PURSUE;
 
     public Skimmer(Projectile projectile) {
         super(null, null, projectile);
@@ -62,7 +47,7 @@ public class Skimmer extends BaseTank {
     @Override
     protected void updateTank(GameContext ctx, float dt) {
         boolean stinger = ctx.playerScore >= 30000;
-        
+
         if (stinger) {
             this.inst = this.stinger;
         } else {
@@ -81,7 +66,7 @@ public class Skimmer extends BaseTank {
         int angToPlayer = calcAngleToPlayer(ctx);
 
         if ((ctx.nmiCount & 0x1FL) == 0L) {
-            //System.out.printf("dist=%5.0f plan=%-6s alt=%4.0f -> %4.0f mc=%d%n", dist, plan, alt, targetAlt, moveCounter);
+            //System.out.printf("dist=%5.0f plan=%-6s alt=%4.0f angToPlayer=%d mc=%d%n", dist, plan, alt, angToPlayer, moveCounter);
         }
 
         if (this.moveCounter == 0) {
@@ -97,9 +82,7 @@ public class Skimmer extends BaseTank {
                 tryShootPlayer(ctx);
                 break;
             case PURSUE:
-                tryShootPlayer(ctx);
                 forward(ctx, stinger ? SPEED_PURSUIT + .2f : SPEED_PURSUIT, dt);
-                tryShootPlayer(ctx);
                 break;
             default:
                 forward(ctx, stinger ? SPEED_WANDER + .2f : SPEED_WANDER, dt);
@@ -132,58 +115,58 @@ public class Skimmer extends BaseTank {
     }
 
     private void choosePlan(GameContext ctx, float dist, int angToPlayer) {
-        int JIT = (int) (ctx.nmiCount & 0x03L);
 
-        // Keep DIVE sticky until we reach the deck
-        if (plan == Plan.DIVE && alt > ALT_DIVE + 1f) {
-            int away = u8(angToPlayer + (orbitDir > 0 ? -ORBIT_OFF_STEPS : +ORBIT_OFF_STEPS));
-            this.turnTo = away;
-            targetAlt = ALT_DIVE;
-            this.moveCounter = 10 + JIT; // short refresh so we recheck soon
-            return;
-        }
+        //System.out.printf("dist=%5.0f plan=%-6s alt=%4.0f angToPlayer=%d mc=%d%n", dist, plan, alt, angToPlayer, moveCounter);
 
-        int roll = MathUtils.random(0, 255);
+        //slightly vary replan timing by 0–3 frames
+        final int JIT = (int) (ctx.nmiCount & 0x03L);// 0,1,2,3 repeating each frame
 
-        if ((ctx.nmiCount & 0x1FL) == 0L) {
-            orbitDir = -orbitDir;
-        }
-
-        if (dist > DIVE_MAX_RANGE) {
-            plan = Plan.PURSUE; // long glide toward player
-            if (roll < 64) {
-                int off = MathUtils.random(0, MICRO_TURN_MAX);
-                this.turnTo = u8(angToPlayer + (MathUtils.randomBoolean() ? +off : -off));
-            } else {
+        if (plan == Plan.RETREAT) {
+            float ax = Math.abs(wrapDelta16(to16(ctx.playerX) - to16(this.pos.x)));
+            float az = Math.abs(wrapDelta16(to16(ctx.playerZ) - to16(this.pos.z)));
+            boolean atEdge = (ax >= WORLD_WRAP_HALF_16BIT - 1000) || (az >= WORLD_WRAP_HALF_16BIT - 1000);
+            if (atEdge) {
+                //directly back to player
+                plan = Plan.PURSUE;
                 this.turnTo = angToPlayer;
+                targetAlt = ALT_HOVER;
+                this.moveCounter = NEW_HEADING_FRAMES + JIT;
+                return;
             }
-            this.moveCounter = NEW_HEADING_FRAMES + 8 + JIT;
+
+            //serpentine path away from player
+            int awayFromPlayerAngle = u8(angToPlayer + 128); // 180° from player
+            int wobbleAngle = MathUtils.random(0, MICRO_TURN_MAX);
+            this.turnTo = u8(MathUtils.randomBoolean() ? awayFromPlayerAngle + wobbleAngle : awayFromPlayerAngle - wobbleAngle);
+            targetAlt = ALT_HOVER;
+            this.moveCounter = 8 + JIT;
             return;
         }
 
-        if (dist >= DIVE_MIN_RANGE && dist <= DIVE_MAX_RANGE) {
+        if (plan == Plan.PURSUE && dist >= RETREAT_RANGE && dist <= DIVE_RANGE) {
             plan = Plan.DIVE;
-            int away = u8(angToPlayer + (orbitDir > 0 ? -ORBIT_OFF_STEPS : +ORBIT_OFF_STEPS));
-            this.turnTo = away;
+            this.turnTo = u8(angToPlayer);
             targetAlt = ALT_DIVE;
             this.moveCounter = 10 + JIT;
             return;
         }
 
-        boolean onRing = Math.abs(dist - RING_CENTER) <= RING_TOLERANCE;
-        if (onRing && roll < 176) {
-            plan = Plan.WANDER;
-            int wobble = MathUtils.random(0, MICRO_TURN_MAX);
-            int base = u8(angToPlayer + orbitDir * ORBIT_OFF_STEPS);
-            this.turnTo = u8(MathUtils.randomBoolean() ? base + wobble : base - wobble);
-            targetAlt = ALT_HOVER;
-            this.moveCounter = NEW_HEADING_FRAMES + JIT;
-        } else {
-            plan = Plan.PURSUE;
-            this.turnTo = angToPlayer;
-            targetAlt = ALT_HOVER;
-            this.moveCounter = NEW_HEADING_FRAMES + JIT;
+        if (plan == Plan.DIVE) {
+            if (alt >= ALT_DIVE && dist > 1000) {
+                //directly back to player
+                this.turnTo = u8(angToPlayer);
+                targetAlt = ALT_DIVE;
+                this.moveCounter = 10 + JIT;
+            } else {
+                plan = Plan.RETREAT;
+                int away = u8(angToPlayer + 128);
+                int wobble = MathUtils.random(0, MICRO_TURN_MAX);
+                this.turnTo = u8(MathUtils.randomBoolean() ? away + wobble : away - wobble);
+                targetAlt = ALT_HOVER;
+                this.moveCounter = NEW_HEADING_FRAMES + JIT;
+            }
         }
+
     }
 
     /**

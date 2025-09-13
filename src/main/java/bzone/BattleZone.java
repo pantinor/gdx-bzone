@@ -133,7 +133,7 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
         GameModelInstance playerProj = Models.buildWireframeInstance(Models.Mesh.PROJECTILE, Color.YELLOW, 1);
         playerProjectile = new Projectile(playerProj);
 
-        GameModelInstance flyerProj = Models.buildWireframeInstance(Models.Mesh.PROJECTILE, Color.ORANGE, 1);
+        GameModelInstance flyerProj = Models.buildWireframeInstance(Models.Mesh.ROCKET, Color.BLUE, 1);
         flyerProjectile = new Projectile(flyerProj);
 
         GameModelInstance tm = Models.buildWireframeInstance(Models.Mesh.SLOW_TANK, Color.GREEN, 1);
@@ -147,6 +147,7 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
         GameModelInstance logozone = Models.buildWireframeInstance(Models.Mesh.LOGO_ZONE, Color.RED, 1);
 
         this.tank = new Tank(tm, stm, rm, tankProjectile);
+        //this.tank = new Skimmer(flyerProjectile);
         this.flyer = new Skimmer(flyerProjectile);
         this.missile = new Missile(mm);
         this.saucer = new Saucer(sm);
@@ -676,7 +677,6 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
             context.playerScore += 1000;
             spatter.spawn(to16(x), to16(z));
             randomSpawn(this.flyer.pos, context);
-            this.flyer.pos.y = 0;
             flyer.applyWrappedTransform(context);
             return true;
         }
@@ -791,12 +791,9 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
 
     private static void randomSpawn(Vector3 pos, GameContext ctx) {
         for (int i = 0; i < 5; i++) {
-            float HALF_ANGLE_DEG = 30f;
-            float angleDeg = ctx.hdFromCam - HALF_ANGLE_DEG + MathUtils.random(0f, 2f * HALF_ANGLE_DEG);
-            float angleRad = angleDeg * MathUtils.degreesToRadians;
             float r = MathUtils.random(16000, 31000);
-            float x = wrap16f(ctx.playerX + MathUtils.sin(angleRad) * r);
-            float z = wrap16f(ctx.playerZ + MathUtils.cos(angleRad) * r);
+            float x = wrap16f(ctx.playerX + 1 * r);
+            float z = wrap16f(ctx.playerZ + 1 * r);
 
             if (!ctx.collisionChecker.collides(x, z)) {
                 pos.x = x;

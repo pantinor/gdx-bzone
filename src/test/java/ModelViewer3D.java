@@ -59,7 +59,7 @@ public class ModelViewer3D extends ApplicationAdapter {
         hudBatch = new SpriteBatch();
 
         cam = new PerspectiveCamera(67, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
-        cam.position.set(0f, 1200f, 3600f);
+        cam.position.set(0f, 500, 500);
         cam.lookAt(0f, 0f, 0f);
         cam.near = 1f;
         cam.far = 10000f;
@@ -75,8 +75,8 @@ public class ModelViewer3D extends ApplicationAdapter {
         gridModel = buildXZGrid(64 /*lines*/, 1000 /*spacing*/, new Color(0.35f, 0.34f, 0.35f, 1f));
         gridInstance = new ModelInstance(gridModel, new Matrix4().idt());
 
-        ba = Models.buildWireframeInstance(Models.Mesh.SLOW_TANK, Color.GREEN, 1);
-        ttle = Models.buildWireframeInstance(Models.Mesh.SUPER_TANK, Color.GREEN, 1);
+        ba = Models.buildWireframeInstance(Models.Mesh.PROJECTILE, Color.GREEN, 1);
+        ttle = Models.buildWireframeInstance(Models.Mesh.ROCKET, Color.GREEN, 1);
         zone = Models.buildWireframeInstance(Models.Mesh.GIR_DRAXON, Color.GREEN, 1);
 
         stage = new Stage(new ScreenViewport());
@@ -120,7 +120,7 @@ public class ModelViewer3D extends ApplicationAdapter {
         modelBatch.begin(cam);
         modelBatch.render(gridInstance, environment);
         modelBatch.render(ba, environment);
-        //dwdmodelBatch.render(ttle, environment);
+        modelBatch.render(ttle, environment);
         //modelBatch.render(zone, environment);
         modelBatch.end();
 

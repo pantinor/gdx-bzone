@@ -40,7 +40,7 @@ public class WireSpecConverter {
 
     public static void main(String[] args) throws Exception {
         //Cli cli = Cli.parse(args);
-        Mesh m = Models.Mesh.SLOW_TANK;
+        Mesh m = Models.Mesh.PROJECTILE2;
         Cli cli = new Cli(m.name(), m.text(), null, m.name() + ".obj", "obj", 1, false);
         if (cli == null) {
             Cli.printHelpAndExit(null);
