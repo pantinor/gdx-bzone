@@ -1,19 +1,27 @@
 package bzone;
 
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.files.FileHandle;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
+import com.badlogic.gdx.graphics.VertexAttribute;
 import com.badlogic.gdx.graphics.VertexAttributes;
 import com.badlogic.gdx.graphics.g3d.Material;
 import com.badlogic.gdx.graphics.g3d.Model;
 import com.badlogic.gdx.graphics.g3d.ModelInstance;
 import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute;
+import com.badlogic.gdx.graphics.g3d.attributes.IntAttribute;
 import com.badlogic.gdx.graphics.g3d.utils.MeshPartBuilder;
+import com.badlogic.gdx.graphics.g3d.utils.MeshPartBuilder.VertexInfo;
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder;
+import com.badlogic.gdx.graphics.glutils.ShaderProgram;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Matrix4;
 import com.badlogic.gdx.math.Vector3;
+import java.io.BufferedReader;
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 
 public class Models {
@@ -35,7 +43,7 @@ public class Models {
         SUPER_TANK("W1 V 26 -368 -640 1456 -552 -640 -456 552 -640 -456 368 -640 1456 -456 -184 -456 456 -184 -456 0 -552 1096 -272 -232 -272 -272 -184 -456 272 -184 -456 272 -232 -272 -184 88 -272 -184 88 -456 184 88 -456 184 88 -272 -88 -88 1280 -88 -88 88 88 -88 88 88 -88 1280 -88 0 1280 -88 0 -88 88 0 -88 88 0 1280 0 88 -456 0 552 -456 0 0 0 E 34 0 1 1 4 4 0 0 3 3 2 2 5 5 3 2 1 4 5 9 10 10 6 6 14 14 13 13 9 9 8 8 7 7 6 6 11 11 12 12 8 12 13 14 11 19 22 22 21 21 20 20 16 16 15 15 18 18 17 17 16 15 19 22 18 17 21 23 24 P 0"),
         SAUCER("W1 V 18 0 -80 -240 -160 -80 -160 -240 -80 0 -160 -80 160 0 -80 240 160 -80 160 240 -80 0 160 -80 -160 0 160 -960 -680 160 -680 -960 160 0 -680 160 680 0 160 960 680 160 680 960 160 0 680 160 -680 0 560 0 0 0 0 E 32 16 8 8 9 9 16 16 10 10 11 11 16 16 12 12 13 13 16 16 14 14 15 15 16 0 7 7 15 15 8 8 0 0 1 1 9 9 10 10 2 2 3 3 11 11 12 12 4 4 5 5 13 13 14 14 6 6 7 6 5 4 3 2 1 P 0"),
         PROJECTILE("W1 V 6 40 -96 -40 40 -16 -40 -40 -16 -40 -40 -96 -40 0 -56 80 0 0 0 E 8 0 4 4 1 1 0 0 3 3 4 4 2 2 3 2 1 P 0"),
-        ROCKET("W1 V 22 24 -80 -120  24 -32 -120  -24 -32 -120  -24 -80 -120  24 -80 0  24 -32 0  -24 -32 0  -24 -80 0  0 -56 100  24 -56 -120  24 -56 -80  50 -56 -120  -24 -56 -120  -24 -56 -80  -50 -56 -120  0 -32 -120  0 -32 -80  0 -6 -120  0 -80 -120  0 -80 -80  0 -106 -120  0 0 0  E 28  0 1  0 3  2 3  1 2  4 5  4 7  6 7  5 6  0 4  1 5  2 6  3 7  4 8  5 8  6 8  7 8 9 10  9 11  10 11 12 13  12 14  13 14  15 16  15 17  16 17  18 19  18 20  19 20  P 0"),
+        ROCKET("W1 V 22 24 -80 -200 24 -32 -200 -24 -32 -200 -24 -80 -200 24 -80 0 24 -32 0 -24 -32 0 -24 -80 0 0 -56 100 24 -56 -200 24 -56 -120 70 -56 -200 -24 -56 -200 -24 -56 -120 -70 -56 -200 0 -32 -200 0 -32 -120 0 16 -200 0 -80 -200 0 -80 -120 0 -126 -200 0 0 0 E 28  0 1  0 3  2 3  1 2  4 5  4 7  6 7  5 6  0 4  1 5  2 6  3 7  4 8  5 8  6 8  7 8 9 10  9 11  10 11 12 13  12 14  13 14  15 16  15 17  16 17  18 19  18 20  19 20  P 0"),
         MISSILE("W1 V 27 -144 0 -384 -72 96 -384 72 96 -384 144 0 -384 72 -96 -384 -72 -96 -384 -288 0 -96 -192 192 -96 192 192 -96 288 0 -96 192 -192 -96 -192 -192 -96 0 0 1152 0 0 1392 144 -336 -144 -144 -336 -144 -144 -336 144 144 -336 144 48 -184 -48 -48 -184 -48 -48 -168 48 48 -168 48 0 192 -96 -72 96 528 72 96 528 0 288 48 0 0 0 E 43 13 12 12 6 6 0 0 1 1 7 7 8 8 9 9 10 10 11 11 6 6 7 7 12 12 8 8 2 2 3 3 9 9 12 12 10 10 4 4 5 5 11 11 12 24 23 23 22 22 24 24 25 25 23 25 22 1 2 3 4 5 0 18 19 19 20 20 21 21 18 18 14 14 15 15 16 16 17 17 14 15 19 20 16 17 21 P 0"),
         RADAR("W1 V 9 80 160 0 160 200 80 160 240 80 80 280 0 -80 160 0 -160 200 80 -160 240 80 -80 280 0 0 0 0 E 10 0 1 1 2 2 3 3 0 0 4 4 5 5 6 6 7 7 4 7 3 P 0"),
         CHUNK_TANK("W1 V 15 344 -296 -588 -344 -296 -588 -344 -976 588 344 -976 588 168 -96 -272 -168 -96 -272 40 -376 0 -40 -376 0 -40 -576 180 40 -576 180 -40 -1000 1080 -40 -1072 1040 40 -1000 1080 40 -1072 1040 0 0 0 E 21 0 1 1 2 2 3 3 0 0 4 4 5 5 1 5 2 3 4 6 12 12 10 10 7 7 6 6 9 9 8 8 11 11 13 13 9 7 8 11 10 12 13 P 0"),
@@ -413,6 +421,190 @@ public class Models {
 
         sr.end();
         Gdx.gl.glLineWidth(1);
+    }
+
+    public static List<ModelInstance> loadBackgroundSections() {
+        try {
+            ObjData data = parseObj();
+
+            final Material greenMat = new Material(ColorAttribute.createDiffuse(Color.GREEN), IntAttribute.createCullFace(GL20.GL_NONE));
+            final Material darkGreenMat = new Material(ColorAttribute.createDiffuse(Color.FOREST), IntAttribute.createCullFace(GL20.GL_NONE));
+
+            final VertexAttributes faceVA = new VertexAttributes(
+                    new VertexAttribute(VertexAttributes.Usage.Position, 3, ShaderProgram.POSITION_ATTRIBUTE),
+                    new VertexAttribute(VertexAttributes.Usage.Normal, 3, ShaderProgram.NORMAL_ATTRIBUTE),
+                    new VertexAttribute(VertexAttributes.Usage.ColorUnpacked, 4, ShaderProgram.COLOR_ATTRIBUTE)
+            );
+            final VertexAttributes edgeVA = new VertexAttributes(
+                    new VertexAttribute(VertexAttributes.Usage.Position, 3, ShaderProgram.POSITION_ATTRIBUTE),
+                    new VertexAttribute(VertexAttributes.Usage.ColorUnpacked, 4, ShaderProgram.COLOR_ATTRIBUTE)
+            );
+
+            List<ModelInstance> out = new ArrayList<>();
+
+            for (ObjObject obj : data.objects) {
+                ModelBuilder mb = new ModelBuilder();
+                mb.begin();
+
+                MeshPartBuilder faces = mb.part(obj.name + "_faces", GL20.GL_TRIANGLES, faceVA, greenMat);
+                MeshPartBuilder edges = mb.part(obj.name + "_edges", GL20.GL_LINES, edgeVA, greenMat);
+
+                final Vector3 a = new Vector3(), b = new Vector3(), c = new Vector3();
+                final Vector3 u = new Vector3(), v = new Vector3(), n = new Vector3();
+
+                final HashSet<Long> edgeSet = new HashSet<>();
+
+                for (int[] poly : obj.polys) {
+                    if (poly.length < 3) {
+                        continue;
+                    }
+
+                    for (int i = 1; i < poly.length - 1; i++) {
+                        int ia = poly[0];
+                        int ib = poly[i];
+                        int ic = poly[i + 1];
+
+                        a.set(data.vertices.get(ia));
+                        b.set(data.vertices.get(ib));
+                        c.set(data.vertices.get(ic));
+
+                        u.set(b).sub(a);
+                        v.set(c).sub(a);
+                        n.set(u.crs(v)).nor();
+
+                        short sa = faces.vertex(new VertexInfo().setPos(a).setNor(n).setCol(Color.GREEN));
+                        short sb = faces.vertex(new VertexInfo().setPos(b).setNor(n).setCol(Color.GREEN));
+                        short sc = faces.vertex(new VertexInfo().setPos(c).setNor(n).setCol(Color.GREEN));
+                        faces.triangle(sa, sb, sc);
+                    }
+
+                    for (int i = 0; i < poly.length; i++) {
+                        int v0 = poly[i];
+                        int v1 = poly[(i + 1) % poly.length];
+                        addEdge(edgeSet, v0, v1);
+                    }
+                }
+
+                for (long key : edgeSet) {
+                    int i0 = (int) (key >>> 32);
+                    int i1 = (int) (key & 0xFFFFFFFFL);
+                    Vector3 p0 = data.vertices.get(i0);
+                    Vector3 p1 = data.vertices.get(i1);
+                    short s0 = edges.vertex(new VertexInfo().setPos(p0).setCol(Color.GREEN));
+                    short s1 = edges.vertex(new VertexInfo().setPos(p1).setCol(Color.GREEN));
+                    edges.line(s0, s1);
+                }
+
+                Model model = mb.end();
+                out.add(new ModelInstance(model));
+            }
+
+            return out;
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to read OBJ", e);
+        }
+    }
+
+    private static ObjData parseObj() throws IOException {
+        FileHandle fh = Gdx.files.classpath("assets/data/background.obj");
+        try (BufferedReader br = fh.reader(64 * 1024)) {
+            ArrayList<Vector3> verts = new ArrayList<>();
+            ArrayList<ObjObject> objects = new ArrayList<>();
+            ObjObject current = null;
+
+            String line;
+            while ((line = br.readLine()) != null) {
+                line = line.trim();
+                if (line.isEmpty() || line.startsWith("#")) {
+                    continue;
+                }
+
+                if (line.startsWith("v ")) {
+                    String[] tok = splitWS(line, 4);
+                    float x = Float.parseFloat(tok[1]);
+                    float y = Float.parseFloat(tok[2]);
+                    float z = Float.parseFloat(tok[3]);
+                    verts.add(new Vector3(x, y, z));
+                } else if (line.startsWith("o ")) {
+                    String name = line.substring(2).trim();
+                    current = new ObjObject(name);
+                    objects.add(current);
+                } else if (line.startsWith("f ")) {
+                    String[] tok = line.split("\\s+");
+                    int n = tok.length - 1;
+                    int[] poly = new int[n];
+                    for (int i = 0; i < n; i++) {
+                        poly[i] = parseIndex(tok[i + 1], verts.size());
+                    }
+                    current.polys.add(poly);
+                } else {
+                    //ignore
+                }
+            }
+
+            return new ObjData(verts, objects);
+        }
+    }
+
+    private static int parseIndex(String token, int vertCount) {
+        int slash = token.indexOf('/');
+        String viStr = (slash < 0) ? token : token.substring(0, slash);
+        int vi = Integer.parseInt(viStr);
+        if (vi > 0) {
+            return vi - 1;
+        } else {
+            return vertCount + vi;
+        }
+    }
+
+    private static void addEdge(HashSet<Long> set, int a, int b) {
+        int i0 = Math.min(a, b);
+        int i1 = Math.max(a, b);
+        long key = ((long) i0 << 32) | (i1 & 0xFFFFFFFFL);
+        set.add(key);
+    }
+
+    private static String[] splitWS(String s, int expected) {
+        String[] out = new String[expected];
+        int idx = 0;
+        int i = 0, len = s.length();
+        while (i < len && idx < expected) {
+            while (i < len && Character.isWhitespace(s.charAt(i))) {
+                i++;
+            }
+            int start = i;
+            while (i < len && !Character.isWhitespace(s.charAt(i))) {
+                i++;
+            }
+            if (start < i) {
+                out[idx++] = s.substring(start, i);
+            }
+        }
+        if (idx != expected) {
+            return s.trim().split("\\s+"); // fallback
+        }
+        return out;
+    }
+
+    private static class ObjData {
+
+        final ArrayList<Vector3> vertices;
+        final ArrayList<ObjObject> objects;
+
+        ObjData(ArrayList<Vector3> vertices, ArrayList<ObjObject> objects) {
+            this.vertices = vertices;
+            this.objects = objects;
+        }
+    }
+
+    private static class ObjObject {
+
+        final String name;
+        final ArrayList<int[]> polys = new ArrayList<>();
+
+        ObjObject(String name) {
+            this.name = name;
+        }
     }
 
 }

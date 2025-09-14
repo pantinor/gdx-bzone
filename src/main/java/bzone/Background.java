@@ -2,22 +2,16 @@ package bzone;
 
 import static bzone.BattleZone.SCREEN_HEIGHT;
 import static bzone.BattleZone.SCREEN_WIDTH;
+import com.badlogic.gdx.graphics.g3d.Environment;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.MathUtils;
-import jakarta.xml.bind.DatatypeConverter;
 import java.util.ArrayList;
 import java.util.List;
+import com.badlogic.gdx.graphics.g3d.ModelBatch;
+import com.badlogic.gdx.graphics.g3d.ModelInstance;
+import com.badlogic.gdx.math.Matrix4;
 
 public class Background {
-
-    private static final String LAND1_HEX = "40000000E01F2060185C2800506000002060E01F20602000C07FC01F000040008060C01F4060000020002000C07F2000E01FE01F4060F01F4060F01F6060A0003000F41F05E0E05AFC5AFA5AFD1FF4FF0300F4FFF71F0CE0FD1F0CE003000CE009000CE0E346E046FE460C00F5FF0300F35FFC1FF15F5B5CF51FFB5FF31FFE5FF11F064003001B00A05EFF1F06A00B0006A0FF1FFCBF0200FFBF094AFD1FFDBF030001A00100FDBFA043010001406A1F070000C0";
-    private static final String LAND2_HEX = "0000200030004060D01F20603000E01FF01F206020004060C01FA0602000807F2000E07FE01FC01FE01F6060000080002000A060E01F000000C0";
-    private static final String LAND3_HEX = "2000000000004060E01F00002000C07F0000400020004060E01FC01FE01F6060200020602000C07F00002060E01F206010002060F01F2060E01FA07F2000600020004060E01F40601000A00FF01F206010002060D01F0000080060601800C07F10002060F01F4060E81FE07F2800E07FF01F400000002060E01F000000C0";
-    private static final String LAND4_HEX = "20000000E01F40602000C01FE01F80600000A00020006060E01F20602000E01F20002060C01F2060000020004000C07FE01F200020002060E01F2060E01F000000C0";
-    private static final String LAND5_HEX = "2000000020004060C01F2060000020004000C07FE01F200010002060D01F6060000080002000A060E01F000000C0";
-    private static final String LAND6_HEX = "2000000000004060E01FE0603000E07FE01FC07FF01F600040006060D81F4060185460004060F91F036005000560FA1F036008000560A01F000000C0";
-    private static final String LAND7_HEX = "60000000A01F406040006060C01F4060000040004000807FE01F400020004060C01F80602000C01F10004060D01F20603000E01FD01F606000C0";
-    private static final String LAND8_HEX = "0000C0002000E060E01F40601000E01F30004060C01F000000C0";
 
     private static final int ANGLES = 512;
     private static final float UNITS_PER_ANGLE = -8f;
@@ -26,7 +20,8 @@ public class Background {
     private static final float STRIP_UNITS = SEG_W_UNITS * SEG_COUNT;
     private int angle9 = 0;
     private final int horizonAdj = 0;
-    private static final List<List<Vector>> LAND = landScapeVectors();
+
+    private final List<ModelInstance> sections;
 
     private static final int VOLCANO_SEG_INDEX = 5;
     private static final int VOLCANO_PARTICLES = 5;
@@ -37,113 +32,15 @@ public class Background {
     private final VolcanoParticle[] volcanoParticles = new VolcanoParticle[VOLCANO_PARTICLES];
 
     public Background() {
+
+        sections = Models.loadBackgroundSections();
+
         for (int i = 0; i < volcanoParticles.length; i++) {
             volcanoParticles[i] = new VolcanoParticle();
         }
     }
 
-    private static final class Vector {
-
-        final int dx, dy, intensity;
-        final boolean shortVec;
-
-        Vector(int dx, int dy, int in, boolean s) {
-            this.dx = dx;
-            this.dy = dy;
-            this.intensity = in;
-            this.shortVec = s;
-        }
-
-        @Override
-        public String toString() {
-            return (shortVec ? "SVEC" : "VCTR") + String.format(" dx=%+d dy=%+d in=%d", dx, dy, intensity);
-        }
-    }
-
-    private static int signExtend(int v, int bits) {
-        int mask = 1 << (bits - 1);
-        return (v ^ mask) - mask;
-    }
-
-    private static int rd16LE(byte[] b, int off) {
-        return (b[off] & 0xFF) | ((b[off + 1] & 0xFF) << 8);
-    }
-
-    private static List<Vector> parseLandscapeVectors(String hex) {
-        byte[] b = DatatypeConverter.parseHexBinary(hex);
-        List<Vector> out = new ArrayList<>();
-        int pc = 0;
-        int curInt = 0;
-
-        while (pc + 2 <= b.length) {
-            int w0 = rd16LE(b, pc);
-
-            if (w0 == 0xC000) {
-                break;
-            }
-
-            if ((w0 & 0x4000) != 0) {
-                int dy5 = (w0 >>> 8) & 0x1F;
-                int dy = signExtend(dy5, 5) * 2;
-
-                int dx5 = (w0) & 0x1F;
-                int dx = signExtend(dx5, 5) * 2;
-
-                out.add(new Vector(dx, dy, curInt, true));
-                pc += 2;
-                continue;
-            }
-
-            if (pc + 4 > b.length) {
-                break; // safety
-            }
-            int w1 = rd16LE(b, pc + 2);
-
-            int dy10 = ((w0 >>> 10) & 0x03) << 8 | (w0 & 0xFF);
-            int dy = signExtend(dy10, 10);
-
-            int dx10 = ((w1 >>> 10) & 0x03) << 8 | (w1 & 0xFF);
-            int dx = signExtend(dx10, 10);
-
-            curInt = (w1 >>> 12) & 0x0F;
-
-            out.add(new Vector(dx, dy, curInt, false));
-            pc += 4;
-        }
-
-        return out;
-    }
-
-    private static List<List<Vector>> landScapeVectors() {
-        return List.of(
-                parseLandscapeVectors(LAND1_HEX),
-                parseLandscapeVectors(LAND2_HEX),
-                parseLandscapeVectors(LAND3_HEX),
-                parseLandscapeVectors(LAND4_HEX),
-                parseLandscapeVectors(LAND5_HEX),
-                parseLandscapeVectors(LAND6_HEX),
-                parseLandscapeVectors(LAND7_HEX),
-                parseLandscapeVectors(LAND8_HEX)
-        );
-    }
-
-    private void drawLandscapeSection(ShapeRenderer sr, List<Vector> section, float originX, float originY, float unit2px) {
-        float x = originX, y = originY;
-        for (Vector v : section) {
-            float nx = x + v.dx * unit2px;
-            float ny = y + v.dy * unit2px;
-
-            if (v.intensity > 0) {
-                float level = Math.min(1f, Math.max(0f, v.intensity / 3f));// 0..1 brightness
-                sr.setColor(0f, level, 0f, 1f); // <-- green only
-                sr.line(x, y, nx, ny);
-            }
-            x = nx;
-            y = ny;
-        }
-    }
-
-    public void drawBackground2D(ShapeRenderer sr, float hd) {
+    public void drawBackground2D(ShapeRenderer sr, ModelBatch batch, Environment env, float hd) {
 
         angle9 = (int) (hd / 360f * ANGLES) % ANGLES;
 
@@ -173,7 +70,13 @@ public class Background {
         for (int i = 0; i < 3; i++) {
             int idx = (segIndex + i) & 7;
             float sx = startX + i * segWpx;
-            drawLandscapeSection(sr, LAND.get(idx), sx, horizonY, unit2px);
+
+            Matrix4 xform = sections.get(idx).transform;
+            xform.val[Matrix4.M03] = sx;
+            xform.val[Matrix4.M13] = horizonY;
+            xform.val[Matrix4.M23] = unit2px;
+
+            batch.render(sections.get(idx), env);
         }
 
         // volcano is tied to a specific landscape segment; origin is at the RIGHT edge of that segment

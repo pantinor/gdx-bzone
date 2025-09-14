@@ -74,7 +74,7 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
     private Environment environment;
     private final List<GameModelInstance> obstacles = new ArrayList<>(21);
     private ShapeRenderer sr;
-    private final Background background = new Background();
+    private Background background;
 
     private final GameContext context = new GameContext();
     private int nmiCount = 0;
@@ -110,6 +110,7 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
 
         backGroundCam = new OrthographicCamera();
         backGroundCam.setToOrtho(false, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+        backGroundCam.far = 256;
         backGroundCam.update();
 
         cam = new PerspectiveCamera(67, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
@@ -123,9 +124,11 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
         Controllers.addListener(this);
 
         environment = new Environment();
-        this.environment.set(new ColorAttribute(ColorAttribute.AmbientLight, 0.05f, 0.05f, 0.05f, 1f));
+        environment.set(new ColorAttribute(ColorAttribute.AmbientLight, 0.05f, 0.05f, 0.05f, 1f));
 
         modelBatch = new ModelBatch();
+
+        background = new Background();
 
         GameModelInstance tankProj = Models.buildWireframeInstance(Models.Mesh.PROJECTILE, Color.RED, 1);
         tankProjectile = new Projectile(tankProj);
@@ -289,16 +292,18 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
         }
 
         modelBatch.end();
+        //end 3D render
 
+        //draw 2D spatter
         sr.setProjectionMatrix(cam.combined);
         spatter.render(sr);
 
-        backGroundCam.setToOrtho(false, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+        //start 2D render
         backGroundCam.update();
-
         sr.setProjectionMatrix(backGroundCam.combined);
-
-        background.drawBackground2D(sr, hd);
+        modelBatch.begin(backGroundCam);
+        background.drawBackground2D(sr, modelBatch, environment, hd);
+        modelBatch.end();
 
         Gdx.gl.glEnable(GL30.GL_BLEND);
         Gdx.gl.glBlendFunc(GL30.GL_SRC_ALPHA, GL30.GL_ONE_MINUS_SRC_ALPHA);
