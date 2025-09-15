@@ -110,7 +110,7 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
 
         backGroundCam = new OrthographicCamera();
         backGroundCam.setToOrtho(false, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
-        backGroundCam.far = 256;
+        backGroundCam.far = 16;
         backGroundCam.update();
 
         cam = new PerspectiveCamera(67, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
@@ -150,7 +150,6 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
         GameModelInstance logozone = Models.buildWireframeInstance(Models.Mesh.LOGO_ZONE, Color.RED, 1);
 
         this.tank = new Tank(tm, stm, rm, tankProjectile);
-        //this.tank = new Skimmer(flyerProjectile);
         this.flyer = new Skimmer(flyerProjectile);
         this.missile = new Missile(mm);
         this.saucer = new Saucer(sm);

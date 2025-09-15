@@ -5,7 +5,6 @@ import static bzone.BattleZone.SCREEN_WIDTH;
 import com.badlogic.gdx.graphics.g3d.Environment;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.MathUtils;
-import java.util.ArrayList;
 import java.util.List;
 import com.badlogic.gdx.graphics.g3d.ModelBatch;
 import com.badlogic.gdx.graphics.g3d.ModelInstance;
@@ -54,7 +53,7 @@ public class Background {
 
         final float horizonY = h * 0.5f - ((horizonAdj >> 4) * unit2px);
 
-        sr.setColor(0f, 0.7f, 0f, 1f);
+        sr.setColor(0f, 1f, 0f, 1f);
         sr.line(0, horizonY, w, horizonY);
 
         // Scroll: 8 units per angle, wrap at 4096
@@ -72,10 +71,8 @@ public class Background {
             float sx = startX + i * segWpx;
 
             Matrix4 xform = sections.get(idx).transform;
-            xform.val[Matrix4.M03] = sx;
-            xform.val[Matrix4.M13] = horizonY;
-            xform.val[Matrix4.M23] = unit2px;
-
+            xform.setToTranslationAndScaling(sx, horizonY, 0f, unit2px, unit2px, 1f);
+            
             batch.render(sections.get(idx), env);
         }
 

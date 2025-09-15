@@ -21,8 +21,10 @@ import com.badlogic.gdx.math.Vector3;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 
 public class Models {
 
@@ -427,8 +429,21 @@ public class Models {
         try {
             ObjData data = parseObj();
 
-            final Material greenMat = new Material(ColorAttribute.createDiffuse(Color.GREEN), IntAttribute.createCullFace(GL20.GL_NONE));
-            final Material darkGreenMat = new Material(ColorAttribute.createDiffuse(Color.FOREST), IntAttribute.createCullFace(GL20.GL_NONE));
+            // Materials keyed by the names in background.mtl
+            final Material greenMat = new Material(
+                    ColorAttribute.createDiffuse(Color.GREEN),
+                    ColorAttribute.createEmissive(Color.GREEN),
+                    IntAttribute.createCullFace(GL20.GL_NONE)
+            );
+            final Material darkGreenMat = new Material(
+                    ColorAttribute.createDiffuse(Color.FOREST),
+                    ColorAttribute.createEmissive(Color.FOREST),
+                    IntAttribute.createCullFace(GL20.GL_NONE)
+            );
+
+            final HashMap<String, Material> mats = new HashMap<>();
+            mats.put("green", greenMat);
+            mats.put("dark-green", darkGreenMat);
 
             final VertexAttributes faceVA = new VertexAttributes(
                     new VertexAttribute(VertexAttributes.Usage.Position, 3, ShaderProgram.POSITION_ATTRIBUTE),
@@ -446,50 +461,66 @@ public class Models {
                 ModelBuilder mb = new ModelBuilder();
                 mb.begin();
 
-                MeshPartBuilder faces = mb.part(obj.name + "_faces", GL20.GL_TRIANGLES, faceVA, greenMat);
-                MeshPartBuilder edges = mb.part(obj.name + "_edges", GL20.GL_LINES, edgeVA, greenMat);
-
+                // Build faces per material group
                 final Vector3 a = new Vector3(), b = new Vector3(), c = new Vector3();
                 final Vector3 u = new Vector3(), v = new Vector3(), n = new Vector3();
 
+                for (Map.Entry<String, ArrayList<int[]>> entry : obj.facesByMtl.entrySet()) {
+                    String mtlName = entry.getKey();
+                    Material mat = mats.getOrDefault(mtlName, greenMat);
+                    MeshPartBuilder faces = mb.part(obj.name + "_faces_" + mtlName, GL20.GL_TRIANGLES, faceVA, mat);
+
+                    for (int[] poly : entry.getValue()) {
+                        if (poly.length < 3) {
+                            continue;
+                        }
+
+                        // simple fan triangulation
+                        for (int i = 1; i < poly.length - 1; i++) {
+                            int ia = poly[0], ib = poly[i], ic = poly[i + 1];
+                            a.set(data.vertices.get(ia));
+                            b.set(data.vertices.get(ib));
+                            c.set(data.vertices.get(ic));
+
+                            u.set(b).sub(a);
+                            v.set(c).sub(a);
+                            n.set(u.crs(v)).nor();
+
+                            // use WHITE so material diffuse/emissive decides the color
+                            short sa = faces.vertex(new VertexInfo().setPos(a).setNor(n).setCol(Color.WHITE));
+                            short sb = faces.vertex(new VertexInfo().setPos(b).setNor(n).setCol(Color.WHITE));
+                            short sc = faces.vertex(new VertexInfo().setPos(c).setNor(n).setCol(Color.WHITE));
+
+                            // IMPORTANT: flip winding once because you swapped Y/Z at parse time
+                            faces.triangle(sa, sc, sb); // (sa, sb, sc) -> (sa, sc, sb)
+                        }
+                    }
+                }
+
+                // Edges — one part is fine
+                MeshPartBuilder edges = mb.part(obj.name + "_edges", GL20.GL_LINES, edgeVA, greenMat);
+
+                // Collect unique edges from both face perimeters and 'l' chains
                 final HashSet<Long> edgeSet = new HashSet<>();
 
-                for (int[] poly : obj.polys) {
-                    if (poly.length < 3) {
-                        continue;
+                // From face perimeters
+                for (ArrayList<int[]> polys : obj.facesByMtl.values()) {
+                    for (int[] poly : polys) {
+                        for (int i = 0; i < poly.length; i++) {
+                            addEdge(edgeSet, poly[i], poly[(i + 1) % poly.length]);
+                        }
                     }
-
-                    for (int i = 1; i < poly.length - 1; i++) {
-                        int ia = poly[0];
-                        int ib = poly[i];
-                        int ic = poly[i + 1];
-
-                        a.set(data.vertices.get(ia));
-                        b.set(data.vertices.get(ib));
-                        c.set(data.vertices.get(ic));
-
-                        u.set(b).sub(a);
-                        v.set(c).sub(a);
-                        n.set(u.crs(v)).nor();
-
-                        short sa = faces.vertex(new VertexInfo().setPos(a).setNor(n).setCol(Color.GREEN));
-                        short sb = faces.vertex(new VertexInfo().setPos(b).setNor(n).setCol(Color.GREEN));
-                        short sc = faces.vertex(new VertexInfo().setPos(c).setNor(n).setCol(Color.GREEN));
-                        faces.triangle(sa, sb, sc);
-                    }
-
-                    for (int i = 0; i < poly.length; i++) {
-                        int v0 = poly[i];
-                        int v1 = poly[(i + 1) % poly.length];
-                        addEdge(edgeSet, v0, v1);
+                }
+                // From 'l' chains
+                for (int[] chain : obj.lines) {
+                    for (int i = 0; i < chain.length - 1; i++) {
+                        addEdge(edgeSet, chain[i], chain[i + 1]);
                     }
                 }
 
                 for (long key : edgeSet) {
-                    int i0 = (int) (key >>> 32);
-                    int i1 = (int) (key & 0xFFFFFFFFL);
-                    Vector3 p0 = data.vertices.get(i0);
-                    Vector3 p1 = data.vertices.get(i1);
+                    int i0 = (int) (key >>> 32), i1 = (int) key;
+                    Vector3 p0 = data.vertices.get(i0), p1 = data.vertices.get(i1);
                     short s0 = edges.vertex(new VertexInfo().setPos(p0).setCol(Color.GREEN));
                     short s1 = edges.vertex(new VertexInfo().setPos(p1).setCol(Color.GREEN));
                     edges.line(s0, s1);
@@ -524,11 +555,26 @@ public class Models {
                     float x = Float.parseFloat(tok[1]);
                     float y = Float.parseFloat(tok[2]);
                     float z = Float.parseFloat(tok[3]);
-                    verts.add(new Vector3(x, y, z));
+                    verts.add(new Vector3(x, z, y));
                 } else if (line.startsWith("o ")) {
                     String name = line.substring(2).trim();
                     current = new ObjObject(name);
                     objects.add(current);
+
+                } else if (line.startsWith("usemtl ")) {
+                    current.currentMtl = line.substring(7).trim();
+
+                } else if (line.startsWith("l ")) {
+                    String[] tok = line.split("\\s+");
+                    int n = tok.length - 1;
+                    if (n >= 2) {
+                        int[] poly = new int[n];
+                        for (int i = 0; i < n; i++) {
+                            poly[i] = parseIndex(tok[i + 1], verts.size());
+                        }
+                        current.lines.add(poly);
+                    }
+
                 } else if (line.startsWith("f ")) {
                     String[] tok = line.split("\\s+");
                     int n = tok.length - 1;
@@ -536,10 +582,9 @@ public class Models {
                     for (int i = 0; i < n; i++) {
                         poly[i] = parseIndex(tok[i + 1], verts.size());
                     }
-                    current.polys.add(poly);
-                } else {
-                    //ignore
+                    current.facesByMtl.computeIfAbsent(current.currentMtl, k -> new ArrayList<>()).add(poly);
                 }
+
             }
 
             return new ObjData(verts, objects);
@@ -600,7 +645,9 @@ public class Models {
     private static class ObjObject {
 
         final String name;
-        final ArrayList<int[]> polys = new ArrayList<>();
+        final ArrayList<int[]> lines = new ArrayList<>();
+        final Map<String, ArrayList<int[]>> facesByMtl = new HashMap<>();
+        String currentMtl = "green";
 
         ObjObject(String name) {
             this.name = name;
