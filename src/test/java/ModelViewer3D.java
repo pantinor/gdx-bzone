@@ -26,6 +26,7 @@ import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.utils.BaseDrawable;
 import com.badlogic.gdx.scenes.scene2d.utils.Drawable;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
+import java.util.Map;
 
 public class ModelViewer3D extends ApplicationAdapter {
 
@@ -35,9 +36,10 @@ public class ModelViewer3D extends ApplicationAdapter {
     private ModelBatch modelBatch;
 
     // Scene content
-    private GameModelInstance ba;
-    private GameModelInstance ttle;
-    private GameModelInstance zone;
+    private ModelInstance ba;
+    private ModelInstance ttle;
+    private ModelInstance zone;
+    private Map<String, ModelInstance> glyphs;
 
     private Model gridModel;
     private ModelInstance gridInstance;
@@ -74,10 +76,16 @@ public class ModelViewer3D extends ApplicationAdapter {
 
         gridModel = buildXZGrid(64 /*lines*/, 1000 /*spacing*/, new Color(0.35f, 0.34f, 0.35f, 1f));
         gridInstance = new ModelInstance(gridModel, new Matrix4().idt());
+        
+        glyphs = Models.loadGlyphs(Color.RED, 1);
 
-        ba = Models.buildWireframeInstance(Models.Mesh.PROJECTILE, Color.GREEN, 1);
-        ttle = Models.buildWireframeInstance(Models.Mesh.ROCKET, Color.GREEN, 1);
-        zone = Models.buildWireframeInstance(Models.Mesh.GIR_DRAXON, Color.GREEN, 1);
+
+        //ba = Models.buildWireframeInstance(Models.Mesh.PROJECTILE, Color.GREEN, 1);
+        //ttle = Models.buildWireframeInstance(Models.Mesh.ROCKET, Color.GREEN, 1);
+        //zone = Models.buildWireframeInstance(Models.Mesh.GIR_DRAXON, Color.GREEN, 1);
+        ba = glyphs.get("glyph_X");
+        ttle = glyphs.get("glyph_Y");
+        zone = glyphs.get("glyph_Z");
 
         stage = new Stage(new ScreenViewport());
         skin = makeMinimalSkin();

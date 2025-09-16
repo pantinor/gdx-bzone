@@ -87,7 +87,7 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
     private TankExplosion explosion;
     private final Spatter spatter = new Spatter();
     private Title title;
-
+    
     private final Radar radarScreen = new Radar();
     private EngineSound engine;
 
@@ -145,9 +145,9 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
         GameModelInstance mm = Models.buildWireframeInstance(Models.Mesh.MISSILE, Color.GREEN, 1);
         GameModelInstance sm = Models.buildWireframeInstance(Models.Mesh.SAUCER, Color.GREEN, 1);
 
-        GameModelInstance logoba = Models.buildWireframeInstance(Models.Mesh.LOGO_BA, Color.RED, 1);
-        GameModelInstance logottle = Models.buildWireframeInstance(Models.Mesh.LOGO_TTLE, Color.RED, 1);
-        GameModelInstance logozone = Models.buildWireframeInstance(Models.Mesh.LOGO_ZONE, Color.RED, 1);
+        GameModelInstance logoba = Models.buildWireframeInstance(Models.Mesh.LOGO_BA, Color.GREEN, 1, 20, true);
+        GameModelInstance logottle = Models.buildWireframeInstance(Models.Mesh.LOGO_TTLE, Color.GREEN, 1, 20, true);
+        GameModelInstance logozone = Models.buildWireframeInstance(Models.Mesh.LOGO_ZONE, Color.GREEN, 1, 20, true);
 
         this.tank = new Tank(tm, stm, rm, tankProjectile);
         this.flyer = new Skimmer(flyerProjectile);
@@ -558,7 +558,7 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
         }
 
     }
-
+    
     private void loadMapObstacles() {
         obstacles.clear();
 

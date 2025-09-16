@@ -9,6 +9,7 @@ import com.badlogic.gdx.graphics.VertexAttributes;
 import com.badlogic.gdx.graphics.g3d.Material;
 import com.badlogic.gdx.graphics.g3d.Model;
 import com.badlogic.gdx.graphics.g3d.ModelInstance;
+import com.badlogic.gdx.graphics.g3d.attributes.BlendingAttribute;
 import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute;
 import com.badlogic.gdx.graphics.g3d.attributes.IntAttribute;
 import com.badlogic.gdx.graphics.g3d.utils.MeshPartBuilder;
@@ -17,6 +18,7 @@ import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder;
 import com.badlogic.gdx.graphics.glutils.ShaderProgram;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Matrix4;
+import com.badlogic.gdx.math.Quaternion;
 import com.badlogic.gdx.math.Vector3;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -232,6 +234,12 @@ public class Models {
         return instance;
     }
 
+    public static GameModelInstance buildWireframeInstance(Mesh mesh, Color color, float unitScale, float thicknessWorldUnits, boolean additiveGlow) {
+        Model model = buildWireframeModel(mesh, color, unitScale, thicknessWorldUnits, additiveGlow);
+        GameModelInstance instance = new GameModelInstance(mesh, model);
+        return instance;
+    }
+
     public static Model buildWireframeModel(Mesh mesh, Color color, float unitScale) {
 
         final List<Wireframe.Vertex> verts = mesh.wf().getVertices();
@@ -263,6 +271,89 @@ public class Models {
         }
 
         return mb.end();
+    }
+
+    public static Model buildWireframeModel(Mesh mesh, Color color, float unitScale, float thicknessWorldUnits, boolean additiveGlow) {
+        final List<Wireframe.Vertex> verts = mesh.wf().getVertices();
+
+        float minY = Float.POSITIVE_INFINITY;
+        for (Wireframe.Vertex v : verts) {
+            minY = Math.min(minY, v.y);
+        }
+        final float yOffset = -minY;
+
+        ModelBuilder mb = new ModelBuilder();
+        mb.begin();
+
+        // Use WHITE diffuse so vertex colors aren't multiplied darker.
+        Material mat = new Material(
+                ColorAttribute.createDiffuse(Color.WHITE),
+                ColorAttribute.createEmissive(color), // brighter regardless of lights
+                new IntAttribute(IntAttribute.CullFace, GL20.GL_NONE)
+        );
+        if (additiveGlow) {
+            mat.set(new BlendingAttribute(true, GL20.GL_SRC_ALPHA, GL20.GL_ONE, 1)); // additive
+        }
+
+        // If we're building tubes we need normals. Otherwise, plain lines.
+        final int attrs = (thicknessWorldUnits <= 0f)
+                ? (VertexAttributes.Usage.Position | VertexAttributes.Usage.ColorUnpacked)
+                : (VertexAttributes.Usage.Position | VertexAttributes.Usage.Normal | VertexAttributes.Usage.ColorUnpacked);
+
+        MeshPartBuilder b = mb.part("wire", (thicknessWorldUnits <= 0f) ? GL20.GL_LINES : GL20.GL_TRIANGLES, attrs, mat);
+        b.setColor(color); // single tint source
+
+        for (Wireframe.Edge e : mesh.wf().getEdges()) {
+            if (e.a < 0 || e.b < 0 || e.a >= verts.size() || e.b >= verts.size()) {
+                continue;
+            }
+            Wireframe.Vertex va  = verts.get(e.a);
+            Wireframe.Vertex vb = verts.get(e.b);
+
+            TMP1.set(va.x * unitScale, (va.y + yOffset) * unitScale, va.z * unitScale);
+            TMP2.set(vb.x * unitScale, (vb.y + yOffset) * unitScale, vb.z * unitScale);
+
+            if (thicknessWorldUnits <= 0f) {
+                b.line(TMP1, TMP2);
+            } else {
+                addTube(b, TMP1, TMP2, thicknessWorldUnits * 0.5f, 12); // radius = thickness/2
+            }
+        }
+
+        return mb.end();
+    }
+
+    private static final Vector3 TMP_MID = new Vector3();
+    private static final Vector3 TMP_DIR = new Vector3();
+    private static final Vector3 TMP_AXIS = new Vector3();
+    private static final Quaternion TMP_Q = new Quaternion();
+    private static final Matrix4 TMP_MAT = new Matrix4();
+
+    private static void addTube(MeshPartBuilder b, Vector3 a, Vector3 c, float radius, int divs) {
+        // Build a cylinder centered on the segment, oriented along it.
+        TMP_MID.set(a).add(c).scl(0.5f);
+        TMP_DIR.set(c).sub(a);
+        float len = TMP_DIR.len();
+        if (len <= 0f) {
+            return;
+        }
+        TMP_DIR.scl(1f / len);
+
+        float dot = TMP_DIR.dot(Vector3.Y);
+        if (dot > 0.9999f) {
+            TMP_Q.idt();
+        } else if (dot < -0.9999f) {
+            TMP_Q.setFromAxis(Vector3.X, 180f);
+        } else {
+            TMP_AXIS.set(Vector3.Y).crs(TMP_DIR).nor();
+            float deg = (float) Math.toDegrees(Math.acos(Math.min(1f, Math.max(-1f, dot))));
+            TMP_Q.setFromAxis(TMP_AXIS, deg);
+        }
+
+        TMP_MAT.idt().translate(TMP_MID).rotate(TMP_Q).scale(radius * 2f, len, radius * 2f);
+        b.setVertexTransform(TMP_MAT);
+        b.cylinder(1f, 1f, 1f, divs); // unit cylinder → scaled/oriented by TMP_MAT
+        b.setVertexTransform(null);
     }
 
     public static ModelInstance buildXZGrid(int halfLines, float spacing, Color color) {
@@ -427,29 +518,14 @@ public class Models {
 
     public static List<ModelInstance> loadBackgroundSections() {
         try {
-            ObjData data = parseObj();
+            ObjData data = parseObj("assets/data/background.obj");
 
-            // Materials keyed by the names in background.mtl
             final Material greenMat = new Material(
                     ColorAttribute.createDiffuse(Color.GREEN),
                     ColorAttribute.createEmissive(Color.GREEN),
                     IntAttribute.createCullFace(GL20.GL_NONE)
             );
-            final Material darkGreenMat = new Material(
-                    ColorAttribute.createDiffuse(Color.FOREST),
-                    ColorAttribute.createEmissive(Color.FOREST),
-                    IntAttribute.createCullFace(GL20.GL_NONE)
-            );
 
-            final HashMap<String, Material> mats = new HashMap<>();
-            mats.put("green", greenMat);
-            mats.put("dark-green", darkGreenMat);
-
-            final VertexAttributes faceVA = new VertexAttributes(
-                    new VertexAttribute(VertexAttributes.Usage.Position, 3, ShaderProgram.POSITION_ATTRIBUTE),
-                    new VertexAttribute(VertexAttributes.Usage.Normal, 3, ShaderProgram.NORMAL_ATTRIBUTE),
-                    new VertexAttribute(VertexAttributes.Usage.ColorUnpacked, 4, ShaderProgram.COLOR_ATTRIBUTE)
-            );
             final VertexAttributes edgeVA = new VertexAttributes(
                     new VertexAttribute(VertexAttributes.Usage.Position, 3, ShaderProgram.POSITION_ATTRIBUTE),
                     new VertexAttribute(VertexAttributes.Usage.ColorUnpacked, 4, ShaderProgram.COLOR_ATTRIBUTE)
@@ -461,57 +537,10 @@ public class Models {
                 ModelBuilder mb = new ModelBuilder();
                 mb.begin();
 
-                // Build faces per material group
-                final Vector3 a = new Vector3(), b = new Vector3(), c = new Vector3();
-                final Vector3 u = new Vector3(), v = new Vector3(), n = new Vector3();
-
-                for (Map.Entry<String, ArrayList<int[]>> entry : obj.facesByMtl.entrySet()) {
-                    String mtlName = entry.getKey();
-                    Material mat = mats.getOrDefault(mtlName, greenMat);
-                    MeshPartBuilder faces = mb.part(obj.name + "_faces_" + mtlName, GL20.GL_TRIANGLES, faceVA, mat);
-
-                    for (int[] poly : entry.getValue()) {
-                        if (poly.length < 3) {
-                            continue;
-                        }
-
-                        // simple fan triangulation
-                        for (int i = 1; i < poly.length - 1; i++) {
-                            int ia = poly[0], ib = poly[i], ic = poly[i + 1];
-                            a.set(data.vertices.get(ia));
-                            b.set(data.vertices.get(ib));
-                            c.set(data.vertices.get(ic));
-
-                            u.set(b).sub(a);
-                            v.set(c).sub(a);
-                            n.set(u.crs(v)).nor();
-
-                            // use WHITE so material diffuse/emissive decides the color
-                            short sa = faces.vertex(new VertexInfo().setPos(a).setNor(n).setCol(Color.WHITE));
-                            short sb = faces.vertex(new VertexInfo().setPos(b).setNor(n).setCol(Color.WHITE));
-                            short sc = faces.vertex(new VertexInfo().setPos(c).setNor(n).setCol(Color.WHITE));
-
-                            // IMPORTANT: flip winding once because you swapped Y/Z at parse time
-                            faces.triangle(sa, sc, sb); // (sa, sb, sc) -> (sa, sc, sb)
-                        }
-                    }
-                }
-
-                // Edges — one part is fine
                 MeshPartBuilder edges = mb.part(obj.name + "_edges", GL20.GL_LINES, edgeVA, greenMat);
 
-                // Collect unique edges from both face perimeters and 'l' chains
                 final HashSet<Long> edgeSet = new HashSet<>();
 
-                // From face perimeters
-                for (ArrayList<int[]> polys : obj.facesByMtl.values()) {
-                    for (int[] poly : polys) {
-                        for (int i = 0; i < poly.length; i++) {
-                            addEdge(edgeSet, poly[i], poly[(i + 1) % poly.length]);
-                        }
-                    }
-                }
-                // From 'l' chains
                 for (int[] chain : obj.lines) {
                     for (int i = 0; i < chain.length - 1; i++) {
                         addEdge(edgeSet, chain[i], chain[i + 1]);
@@ -536,8 +565,59 @@ public class Models {
         }
     }
 
-    private static ObjData parseObj() throws IOException {
-        FileHandle fh = Gdx.files.classpath("assets/data/background.obj");
+    public static Map<String, ModelInstance> loadGlyphs(Color color, float thickness) {
+        Map<String, ModelInstance> map = new HashMap<>();
+        try {
+            ObjData data = parseObj("assets/data/glyphs.obj");
+
+            for (ObjObject obj : data.objects) {
+                ModelBuilder mb = new ModelBuilder();
+                mb.begin();
+
+                Material mat = new Material(
+                        ColorAttribute.createDiffuse(Color.WHITE),
+                        ColorAttribute.createEmissive(color),
+                        new IntAttribute(IntAttribute.CullFace, GL20.GL_NONE)
+                );
+                mat.set(new BlendingAttribute(true, GL20.GL_SRC_ALPHA, GL20.GL_ONE, 1));
+                int attrs = (VertexAttributes.Usage.Position | VertexAttributes.Usage.Normal | VertexAttributes.Usage.ColorUnpacked);
+
+                MeshPartBuilder mpb = mb.part(obj.name, GL20.GL_TRIANGLES, attrs, mat);
+                mpb.setColor(color);
+
+                HashSet<Long> edgeSet = new HashSet<>();
+                for (int[] chain : obj.lines) {
+                    for (int i = 0; i < chain.length - 1; i++) {
+                        addEdge(edgeSet, chain[i], chain[i + 1]);
+                    }
+                }
+
+                for (long key : edgeSet) {
+                    int i0 = (int) (key >>> 32);
+                    int i1 = (int) (key);
+                    Vector3 p0 = data.vertices.get(i0);
+                    Vector3 p1 = data.vertices.get(i1);
+                    TMP1.set(p0);
+                    TMP2.set(p1);
+                    addTube(mpb, TMP1, TMP2, thickness * 0.5f, 12);
+                }
+
+                Model model = mb.end();
+                ModelInstance inst = new ModelInstance(model);
+
+                inst.transform.setToTranslationAndScaling(800, 800, 0, 1.5f, 1.5f, 1.5f).rotate(Vector3.X, 90).rotate(Vector3.Z, 180);
+
+                map.put(obj.name, inst);
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return map;
+    }
+
+    private static ObjData parseObj(String fname) throws IOException {
+        FileHandle fh = Gdx.files.classpath(fname);
         try (BufferedReader br = fh.reader(64 * 1024)) {
             ArrayList<Vector3> verts = new ArrayList<>();
             ArrayList<ObjObject> objects = new ArrayList<>();
@@ -561,9 +641,6 @@ public class Models {
                     current = new ObjObject(name);
                     objects.add(current);
 
-                } else if (line.startsWith("usemtl ")) {
-                    current.currentMtl = line.substring(7).trim();
-
                 } else if (line.startsWith("l ")) {
                     String[] tok = line.split("\\s+");
                     int n = tok.length - 1;
@@ -574,17 +651,7 @@ public class Models {
                         }
                         current.lines.add(poly);
                     }
-
-                } else if (line.startsWith("f ")) {
-                    String[] tok = line.split("\\s+");
-                    int n = tok.length - 1;
-                    int[] poly = new int[n];
-                    for (int i = 0; i < n; i++) {
-                        poly[i] = parseIndex(tok[i + 1], verts.size());
-                    }
-                    current.facesByMtl.computeIfAbsent(current.currentMtl, k -> new ArrayList<>()).add(poly);
                 }
-
             }
 
             return new ObjData(verts, objects);
@@ -646,8 +713,6 @@ public class Models {
 
         final String name;
         final ArrayList<int[]> lines = new ArrayList<>();
-        final Map<String, ArrayList<int[]>> facesByMtl = new HashMap<>();
-        String currentMtl = "green";
 
         ObjObject(String name) {
             this.name = name;
