@@ -16,6 +16,7 @@ public class Sounds {
         SAUCER_HIT("saucer-hit.ogg", false),
         MISSILE_MAX("maximize.ogg", false),
         MISSILE_MIN("minimize.ogg", false),
+        OVERTURE("overture.ogg", false),
         RADAR("radar.ogg", false);
 
         private final Sound sound;

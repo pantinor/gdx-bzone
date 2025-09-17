@@ -518,7 +518,7 @@ public class Models {
 
     public static List<ModelInstance> loadBackgroundSections() {
         try {
-            ObjData data = parseObj("assets/data/background.obj");
+            ObjData data = parseObj("assets/data/background2.obj");
 
             final Material greenMat = new Material(
                     ColorAttribute.createDiffuse(Color.GREEN),

@@ -87,7 +87,7 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
     private TankExplosion explosion;
     private final Spatter spatter = new Spatter();
     private Title title;
-    
+
     private final Radar radarScreen = new Radar();
     private EngineSound engine;
 
@@ -558,7 +558,7 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
         }
 
     }
-    
+
     private void loadMapObstacles() {
         obstacles.clear();
 
@@ -680,7 +680,7 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
             this.flyer.alive = false;
             context.playerScore += 1000;
             spatter.spawn(to16(x), to16(z));
-            randomSpawn(this.flyer.pos, context);
+            randomSpawnDistantInView(context, this.flyer.pos, 0);
             flyer.applyWrappedTransform(context);
             return true;
         }
@@ -794,7 +794,8 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
     }
 
     private static void randomSpawn(Vector3 pos, GameContext ctx) {
-        for (int i = 0; i < 5; i++) {
+        
+        for (int i = 0; i < 15; i++) {
             float r = MathUtils.random(16000, 31000);
             float x = wrap16f(ctx.playerX + 1 * r);
             float z = wrap16f(ctx.playerZ + 1 * r);
@@ -805,9 +806,10 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
                 pos.z = z;
                 return;
             }
-            //fallback
-            pos.set(wrap16f(ctx.playerX + 31000), WORLD_Y, wrap16f(ctx.playerZ));
         }
+        
+        Sounds.play(Sounds.Effect.OVERTURE);
+        pos.set(wrap16f(ctx.playerX + 31000), WORLD_Y, wrap16f(ctx.playerZ));
     }
 
     private static void randomSpawnDistantInView(GameContext ctx, Vector3 pos, float y) {
