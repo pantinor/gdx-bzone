@@ -1,135 +1,191 @@
-
+import java.io.BufferedWriter;
+import java.io.IOException;
 import java.nio.file.*;
 import java.util.*;
 import static java.lang.Math.*;
 
 public class Stellar7MeshDump {
 
-    public static void main(String[] args) throws Exception {
-        byte[] rom = Files.readAllBytes(Paths.get("C:\\Users\\panti\\Downloads\\a2-stellar7\\LEV7"));
-        int offset = 0x05D5;
-        int scale = 8;
-        System.out.println(meshEnumLine(rom, offset, "Gir Draxon", scale));
+    // === CONFIG ===
+    private static final Path BASE_DIR   = Paths.get("C:\\Users\\panti\\Downloads\\a2-stellar7"); // folder with BRIEF.ST, LEV1, LEV7
+    private static final Path OUTPUT_OBJ = Paths.get("stellar7.obj");
+    private static final int  END = 0x80;
+    // overall scale applied like your previous code (you used 8 in the sample)
+    private static final int  DEFAULT_SCALE = 8;
+
+    // Mesh entry: which file, human name, offset, (optional per-mesh scale)
+    private record MeshRef(String file, String name, int offsetHex, Integer scaleOpt) {
+        int scale() { return (scaleOpt != null) ? scaleOpt : DEFAULT_SCALE; }
     }
 
-    private static final int END = 0x80;
+    private static final List<MeshRef> MESHES = List.of(
+        // BRIEF.ST
+        new MeshRef("BRIEF.ST","Sandsled",                0x0080,null),
+        new MeshRef("BRIEF.ST","Laser Tank",              0x00E1,null),
+        new MeshRef("BRIEF.ST","Hovercraft",              0x0163,null),
+        new MeshRef("BRIEF.ST","Prowler",                 0x01EA,null),
+        new MeshRef("BRIEF.ST","Heavy Tank",              0x0264,null),
+        new MeshRef("BRIEF.ST","Stalker",                 0x02F2,null),
+        new MeshRef("BRIEF.ST","Laser Battery",           0x036E,null),
+        new MeshRef("BRIEF.ST","Gun Battery",             0x03D6,null),
+        new MeshRef("BRIEF.ST","Pulsar",                  0x0443,null),
+        new MeshRef("BRIEF.ST","Skimmer",                 0x048D,null),
+        new MeshRef("BRIEF.ST","Stinger",                 0x04E0,null),
+        new MeshRef("BRIEF.ST","Seeker",                  0x0517,null),
+        new MeshRef("BRIEF.ST","Obstacle",                0x0587,null),
+        new MeshRef("BRIEF.ST","Fuelbay",                 0x05B9,null),
+        new MeshRef("BRIEF.ST","Warplink",                0x0612,null),
 
-    /**
-     * Stellar 7 meshes discovered in *.dis65 files (Visualizer ident:
-     * "stellar7-mesh"). Offsets refer to the mesh data block within the
-     * corresponding ROM file.
-     *
-     * <pre>
-     * BRIEF.ST : Sandsled                @ 0x0080 (128)
-     * BRIEF.ST : Laser Tank              @ 0x00E1 (225)
-     * BRIEF.ST : Hovercraft              @ 0x0163 (355)
-     * BRIEF.ST : Prowler                 @ 0x01EA (490)
-     * BRIEF.ST : Heavy Tank              @ 0x0264 (612)
-     * BRIEF.ST : Stalker                 @ 0x02F2 (754)
-     * BRIEF.ST : Laser Battery           @ 0x036E (878)
-     * BRIEF.ST : Gun Battery             @ 0x03D6 (982)
-     * BRIEF.ST : Pulsar                  @ 0x0443 (1091)
-     * BRIEF.ST : Skimmer                 @ 0x048D (1165)
-     * BRIEF.ST : Stinger                 @ 0x04E0 (1248)
-     * BRIEF.ST : Seeker                  @ 0x0517 (1303)
-     * BRIEF.ST : Obstacle                @ 0x0587 (1415)
-     * BRIEF.ST : Fuelbay                 @ 0x05B9 (1465)
-     * BRIEF.ST : Warplink                @ 0x0612 (1554)
-     *
-     * LEV1     : Explosion 0             @ 0x0080 (128)
-     * LEV1     : Explosion 1             @ 0x00BA (186)
-     * LEV1     : Explosion 2             @ 0x012C (300)
-     * LEV1     : Explosion 3             @ 0x019E (414)
-     * LEV1     : Explosion 4             @ 0x0210 (528)
-     * LEV1     : Explosion 5             @ 0x0282 (642)
-     * LEV1     : Explosion 6             @ 0x02F4 (756)
-     * LEV1     : Explosion 7             @ 0x0366 (870)
-     * LEV1     : Impact 0                @ 0x03D8 (984)
-     * LEV1     : Impact 1                @ 0x03FB (1019)
-     * LEV1     : Impact 2                @ 0x042D (1069)
-     * LEV1     : Impact 3                @ 0x045F (1119)
-     * LEV1     : Impact 4                @ 0x0491 (1169)
-     * LEV1     : Impact 5                @ 0x04C3 (1219)
-     * LEV1     : Impact 6                @ 0x04F5 (1269)
-     * LEV1     : Impact 7                @ 0x0527 (1319)
-     * LEV1     : Sandsled                @ 0x0559 (1369)
-     * LEV1     : Hovercraft              @ 0x05BA (1466)
-     * LEV1     : Skimmer                 @ 0x0641 (1601)
-     * LEV1     : Laser Projectile        @ 0x0694 (1684)
-     * LEV1     : Cannon Projectile       @ 0x06C6 (1734)
-     * LEV1     : Obstacle                @ 0x06E7 (1767)
-     * LEV1     : Warplink                @ 0x0719 (1817)
-     *
-     * LEV7     : Explosion 0             @ 0x0080 (128)
-     * LEV7     : Explosion 1             @ 0x00BA (186)
-     * LEV7     : Explosion 2             @ 0x012C (300)
-     * LEV7     : Explosion 3             @ 0x019E (414)
-     * LEV7     : Explosion 4             @ 0x0210 (528)
-     * LEV7     : Explosion 5             @ 0x0282 (642)
-     * LEV7     : Explosion 6             @ 0x02F4 (756)
-     * LEV7     : Explosion 7             @ 0x0366 (870)
-     * LEV7     : Impact 0                @ 0x03D8 (984)
-     * LEV7     : Impact 1                @ 0x03FB (1019)
-     * LEV7     : Impact 2                @ 0x042D (1069)
-     * LEV7     : Impact 3                @ 0x045F (1119)
-     * LEV7     : Impact 4                @ 0x0491 (1169)
-     * LEV7     : Impact 5                @ 0x04C3 (1219)
-     * LEV7     : Impact 6                @ 0x04F5 (1269)
-     * LEV7     : Impact 7                @ 0x0527 (1319)
-     * LEV7     : Stalker                 @ 0x0559 (1369)
-     * LEV7     : Gir Draxon              @ 0x05D5 (1493)
-     * LEV7     : Pulsar                  @ 0x0684 (1668)
-     * LEV7     : Stinger                 @ 0x06CE (1742)
-     * LEV7     : Guiser                  @ 0x0705 (1797)
-     * LEV7     : Laser Projectile        @ 0x0737 (1847)
-     * LEV7     : Cannon Projectile       @ 0x0769 (1897)
-     * LEV7     : Heavy Cannon Projectile @ 0x078A (1930)
-     * LEV7     : Obstacle                @ 0x07AB (1963)
-     * </pre>
-     */
-    static String meshEnumLine(byte[] rom, int offset, String name, int scale) {
+        // LEV1
+        new MeshRef("LEV1","Explosion 0",                 0x0080,null),
+        new MeshRef("LEV1","Explosion 1",                 0x00BA,null),
+        new MeshRef("LEV1","Explosion 2",                 0x012C,null),
+        new MeshRef("LEV1","Explosion 3",                 0x019E,null),
+        new MeshRef("LEV1","Explosion 4",                 0x0210,null),
+        new MeshRef("LEV1","Explosion 5",                 0x0282,null),
+        new MeshRef("LEV1","Explosion 6",                 0x02F4,null),
+        new MeshRef("LEV1","Explosion 7",                 0x0366,null),
+        new MeshRef("LEV1","Impact 0",                    0x03D8,null),
+        new MeshRef("LEV1","Impact 1",                    0x03FB,null),
+        new MeshRef("LEV1","Impact 2",                    0x042D,null),
+        new MeshRef("LEV1","Impact 3",                    0x045F,null),
+        new MeshRef("LEV1","Impact 4",                    0x0491,null),
+        new MeshRef("LEV1","Impact 5",                    0x04C3,null),
+        new MeshRef("LEV1","Impact 6",                    0x04F5,null),
+        new MeshRef("LEV1","Impact 7",                    0x0527,null),
+        new MeshRef("LEV1","Sandsled",                    0x0559,null),
+        new MeshRef("LEV1","Hovercraft",                  0x05BA,null),
+        new MeshRef("LEV1","Skimmer",                     0x0641,null),
+        new MeshRef("LEV1","Laser Projectile",            0x0694,null),
+        new MeshRef("LEV1","Cannon Projectile",           0x06C6,null),
+        new MeshRef("LEV1","Obstacle",                    0x06E7,null),
+        new MeshRef("LEV1","Warplink",                    0x0719,null),
+
+        // LEV7
+        new MeshRef("LEV7","Explosion 0",                 0x0080,null),
+        new MeshRef("LEV7","Explosion 1",                 0x00BA,null),
+        new MeshRef("LEV7","Explosion 2",                 0x012C,null),
+        new MeshRef("LEV7","Explosion 3",                 0x019E,null),
+        new MeshRef("LEV7","Explosion 4",                 0x0210,null),
+        new MeshRef("LEV7","Explosion 5",                 0x0282,null),
+        new MeshRef("LEV7","Explosion 6",                 0x02F4,null),
+        new MeshRef("LEV7","Explosion 7",                 0x0366,null),
+        new MeshRef("LEV7","Impact 0",                    0x03D8,null),
+        new MeshRef("LEV7","Impact 1",                    0x03FB,null),
+        new MeshRef("LEV7","Impact 2",                    0x042D,null),
+        new MeshRef("LEV7","Impact 3",                    0x045F,null),
+        new MeshRef("LEV7","Impact 4",                    0x0491,null),
+        new MeshRef("LEV7","Impact 5",                    0x04C3,null),
+        new MeshRef("LEV7","Impact 6",                    0x04F5,null),
+        new MeshRef("LEV7","Impact 7",                    0x0527,null),
+        new MeshRef("LEV7","Stalker",                     0x0559,null),
+        new MeshRef("LEV7","Gir Draxon",                  0x05D5,null),
+        new MeshRef("LEV7","Pulsar",                      0x0684,null),
+        new MeshRef("LEV7","Stinger",                     0x06CE,null),
+        new MeshRef("LEV7","Guiser",                      0x0705,null),
+        new MeshRef("LEV7","Laser Projectile",            0x0737,null),
+        new MeshRef("LEV7","Cannon Projectile",           0x0769,null),
+        new MeshRef("LEV7","Heavy Cannon Projectile",     0x078A,null),
+        new MeshRef("LEV7","Obstacle",                    0x07AB,null)
+    );
+
+    public static void main(String[] args) throws Exception {
+        // read ROMs once
+        Map<String, byte[]> roms = new HashMap<>();
+        for (String fname : Set.of("BRIEF.ST","LEV1","LEV7")) {
+            Path p = BASE_DIR.resolve(fname);
+            roms.put(fname, Files.readAllBytes(p));
+        }
+
+        // build OBJ
+        String nl = System.lineSeparator();
+        StringBuilder obj = new StringBuilder(1 << 20);
+        obj.append("# Stellar 7 OBJ export (vertices/edges) ").append(new Date()).append(nl).append(nl);
+
+        int globalVBase = 0; // 0-based count of vertices already written
+
+        for (MeshRef m : MESHES) {
+            byte[] rom = roms.get(m.file);
+            if (rom == null) continue;
+
+            ParsedMesh mesh = parseMeshAt(rom, m.offsetHex, m.scale());
+
+            // header
+            obj.append("o ").append(safeName(m.name)).append(nl);
+
+            // vertices (scaled like your previous code)
+            for (float[] v : mesh.verts) {
+                obj.append("v ")
+                   .append(fmt(v[0])).append(' ')
+                   .append(fmt(v[1])).append(' ')
+                   .append(fmt(v[2])).append(nl);
+            }
+
+            // edges as OBJ lines (remember: OBJ is 1-based)
+            for (int[] e : mesh.edges) {
+                int a = globalVBase + e[0] + 1;
+                int b = globalVBase + e[1] + 1;
+                obj.append("l ").append(a).append(' ').append(b).append(nl);
+            }
+            obj.append(nl);
+
+            globalVBase += mesh.verts.size();
+        }
+
+        try (BufferedWriter w = Files.newBufferedWriter(OUTPUT_OBJ)) {
+            w.write(obj.toString());
+        }
+        System.out.println("Wrote OBJ: " + OUTPUT_OBJ);
+    }
+
+    // === parsing exactly like your earlier implementation ===
+    private static ParsedMesh parseMeshAt(byte[] rom, int offset, int scale) {
         int p = offset;
 
-        // vertices
+        // --- vertices (dist, angle, y) until END ---
         List<float[]> verts = new ArrayList<>();
-        while ((rom[p] & 0xFF) != END) {
-            int dist = rom[p++] & 0xFF;
+        while (p < rom.length && (rom[p] & 0xFF) != END) {
+            if (p + 2 >= rom.length) break; // safety
+            int dist  = rom[p++] & 0xFF;
             int angle = rom[p++] & 0xFF;
-            int y = (byte) rom[p++];     // signed
+            int y     = (byte) rom[p++]; // signed
 
-            double rads = (angle / 128.0) * Math.PI;   // plugin math
+            double rads = (angle / 128.0) * Math.PI;
             double x = cos(rads) * dist;
             double z = sin(rads) * dist;
 
-            verts.add(new float[]{(float) x, (float) y, (float) z});
+            // scale like your code (integer scale, but we keep float in OBJ)
+            verts.add(new float[] {
+                (float) (x * scale),
+                (float) (y * scale),
+                (float) (z * scale)
+            });
         }
-        p++; // skip END
+        if (p < rom.length) p++; // skip END
 
-        // edges
+        // --- edges (pairs of vertex indices) until END ---
         List<int[]> edges = new ArrayList<>();
-        while ((rom[p] & 0xFF) != END) {
+        while (p < rom.length && (rom[p] & 0xFF) != END) {
+            if (p + 1 >= rom.length) break; // safety
             int v0 = rom[p++] & 0xFF;
             int v1 = rom[p++] & 0xFF;
-            edges.add(new int[]{v0, v1});
+            // bounds-check but keep lenient
+            if (v0 >= 0 && v0 < verts.size() && v1 >= 0 && v1 < verts.size()) {
+                edges.add(new int[]{v0, v1});
+            }
         }
+        // (optional) if (p < rom.length) p++; // could skip the trailing END if needed
 
-        // emit "W1 V <n> x y z ... E <m> i j ... P 0"
-        StringBuilder s = new StringBuilder();
-        s.append("W1 V ").append(verts.size()).append(' ');
-        for (float[] v : verts) {
-            int xi = Math.round(v[0] * scale);
-            int yi = Math.round(v[1] * scale);
-            int zi = Math.round(v[2] * scale);
-            s.append(xi).append(' ').append(yi).append(' ').append(zi).append(' ');
-        }
-        s.append("E ").append(edges.size()).append(' ');
-        for (int[] e : edges) {
-            s.append(e[0]).append(' ').append(e[1]).append(' ');
-        }
-        s.append("P 0");
-
-        String enumName = name.toUpperCase().replace(' ', '_');
-        return enumName + "(\"" + s.toString().trim() + "\"),";
+        return new ParsedMesh(verts, edges);
     }
 
+    // === helpers ===
+    private static String fmt(float v) { return String.format(Locale.US, "%.6f", v); }
+    private static String safeName(String s) { return s.replaceAll("[\\s]+", "_"); }
+
+    private static final class ParsedMesh {
+        final List<float[]> verts;
+        final List<int[]> edges;
+        ParsedMesh(List<float[]> v, List<int[]> e) { this.verts = v; this.edges = e; }
+    }
 }

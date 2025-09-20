@@ -3,6 +3,7 @@ package bzone;
 import bzone.Models.Mesh;
 import com.badlogic.gdx.graphics.g3d.Model;
 import com.badlogic.gdx.graphics.g3d.ModelInstance;
+import com.badlogic.gdx.math.Matrix4;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.math.collision.BoundingBox;
 
@@ -23,14 +24,14 @@ public class GameModelInstance extends ModelInstance {
     }
 
     public float getX() {
-        return this.transform.val[12];
+        return this.transform.val[Matrix4.M03];
     }
 
     public float getY() {
-        return this.transform.val[13];
+        return this.transform.val[Matrix4.M13];
     }
 
     public float getZ() {
-        return this.transform.val[14];
+        return this.transform.val[Matrix4.M23];
     }
 }

@@ -32,7 +32,7 @@ public class Background {
 
     public Background() {
 
-        sections = Models.loadBackgroundSections();
+        sections = Models.loadBackgroundObjects("assets/data/background.obj", 1);
 
         for (int i = 0; i < volcanoParticles.length; i++) {
             volcanoParticles[i] = new VolcanoParticle();

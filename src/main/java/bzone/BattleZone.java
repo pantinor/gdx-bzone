@@ -130,24 +130,24 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
 
         background = new Background();
 
-        GameModelInstance tankProj = Models.buildWireframeInstance(Models.Mesh.PROJECTILE, Color.RED, 1);
+        GameModelInstance tankProj = Models.getModelInstance(Mesh.PROJECTILE, Color.RED, 1);
         tankProjectile = new Projectile(tankProj);
 
-        GameModelInstance playerProj = Models.buildWireframeInstance(Models.Mesh.PROJECTILE, Color.YELLOW, 1);
+        GameModelInstance playerProj = Models.getModelInstance(Mesh.PROJECTILE, Color.YELLOW, 1);
         playerProjectile = new Projectile(playerProj);
 
-        GameModelInstance flyerProj = Models.buildWireframeInstance(Models.Mesh.ROCKET, Color.BLUE, 1);
+        GameModelInstance flyerProj = Models.getModelInstance(Mesh.ROCKET, Color.BLUE, 1);
         flyerProjectile = new Projectile(flyerProj);
 
-        GameModelInstance tm = Models.buildWireframeInstance(Models.Mesh.SLOW_TANK, Color.GREEN, 1);
-        GameModelInstance stm = Models.buildWireframeInstance(Models.Mesh.SUPER_TANK, Color.GREEN, 1);
-        GameModelInstance rm = Models.buildWireframeInstance(Models.Mesh.RADAR, Color.GREEN, 1);
-        GameModelInstance mm = Models.buildWireframeInstance(Models.Mesh.MISSILE, Color.GREEN, 1);
-        GameModelInstance sm = Models.buildWireframeInstance(Models.Mesh.SAUCER, Color.GREEN, 1);
+        GameModelInstance tm = Models.getModelInstance(Mesh.SLOW_TANK, Color.GREEN, 1);
+        GameModelInstance stm = Models.getModelInstance(Mesh.SUPER_TANK, Color.GREEN, 1);
+        GameModelInstance rm = Models.getModelInstance(Mesh.RADAR, Color.GREEN, 1);
+        GameModelInstance mm = Models.getModelInstance(Mesh.MISSILE, Color.GREEN, 1);
+        GameModelInstance sm = Models.getModelInstance(Mesh.SAUCER, Color.GREEN, 1);
 
-        GameModelInstance logoba = Models.buildWireframeInstance(Models.Mesh.LOGO_BA, Color.GREEN, 1, 20, true);
-        GameModelInstance logottle = Models.buildWireframeInstance(Models.Mesh.LOGO_TTLE, Color.GREEN, 1, 20, true);
-        GameModelInstance logozone = Models.buildWireframeInstance(Models.Mesh.LOGO_ZONE, Color.GREEN, 1, 20, true);
+        GameModelInstance logoba = Models.getModelInstance(Mesh.LOGO_BA, Color.GREEN, 20, true);
+        GameModelInstance logottle = Models.getModelInstance(Mesh.LOGO_TTLE, Color.GREEN, 20, true);
+        GameModelInstance logozone = Models.getModelInstance(Mesh.LOGO_ZONE, Color.GREEN, 20, true);
 
         this.tank = new Tank(tm, stm, rm, tankProjectile);
         this.flyer = new Skimmer(flyerProjectile);
@@ -600,7 +600,7 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
             float y = WORLD_Y;
             float deg = face * (360f / 256f);
 
-            GameModelInstance inst = Models.buildWireframeInstance(Models.Mesh.values()[type], Color.GREEN, 1f);
+            GameModelInstance inst = Models.getModelInstance(Mesh.values()[type], Color.GREEN, 1f);
             inst.initialPos.set(x, y, z);
             inst.transform.setToTranslation(x, y, z);
             inst.transform.rotate(Vector3.Y, deg);
@@ -654,7 +654,7 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
 
     private boolean hitsObstacle(float x, float z) {
         for (GameModelInstance inst : obstacles) {
-            if (inst.mesh().equals(Mesh.SHORT_BOX)) {
+            if (Mesh.SHORT_BOX.equals(inst.mesh())) {
                 continue;//shoots over the short boxes
             }
             boolean hits = touches(inst, x, z);
@@ -794,7 +794,7 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
     }
 
     private static void randomSpawn(Vector3 pos, GameContext ctx) {
-        
+
         for (int i = 0; i < 15; i++) {
             float r = MathUtils.random(16000, 31000);
             float x = wrap16f(ctx.playerX + 1 * r);
@@ -807,7 +807,7 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
                 return;
             }
         }
-        
+
         Sounds.play(Sounds.Effect.OVERTURE);
         pos.set(wrap16f(ctx.playerX + 31000), WORLD_Y, wrap16f(ctx.playerZ));
     }

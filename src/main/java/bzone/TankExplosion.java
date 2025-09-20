@@ -1,7 +1,6 @@
 package bzone;
 
 import static bzone.BattleZone.nearestWrappedPos;
-import bzone.Models.Wireframe;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g3d.Environment;
 import com.badlogic.gdx.graphics.g3d.ModelBatch;
@@ -10,9 +9,12 @@ import java.util.ArrayList;
 import java.util.List;
 import bzone.GameContext.TankSpawn;
 import com.badlogic.gdx.graphics.Camera;
+import com.badlogic.gdx.graphics.g3d.ModelInstance;
 import com.badlogic.gdx.math.Matrix4;
+import com.badlogic.gdx.math.collision.BoundingBox;
 
 public class TankExplosion {
+
     private static final Vector3 TMP1 = new Vector3();
 
     private static final int CHUNKS = 6;
@@ -79,9 +81,9 @@ public class TankExplosion {
 
         for (int i = 0; i < CHUNKS; i++) {
             Models.Mesh mesh = meshes[i % meshes.length];
-            GameModelInstance inst = Models.buildWireframeInstance(mesh, color, 1f);
+            GameModelInstance inst = Models.getModelInstance(mesh, color, 1f);
             Piece p = new Piece(inst);
-            p.size = computeHeight(mesh);
+            p.size = computeHeight(inst);
             tankPieces.add(p);
         }
 
@@ -93,9 +95,9 @@ public class TankExplosion {
 
         for (int i = 0; i < CHUNKS; i++) {
             Models.Mesh mesh = meshes[i % meshes.length];
-            GameModelInstance inst = Models.buildWireframeInstance(mesh, color, 1f);
+            GameModelInstance inst = Models.getModelInstance(mesh, color, 1f);
             Piece p = new Piece(inst);
-            p.size = computeHeight(mesh);
+            p.size = computeHeight(inst);
             missilePieces.add(p);
         }
     }
@@ -273,23 +275,12 @@ public class TankExplosion {
         }
     }
 
-    private static float computeHeight(Models.Mesh mesh) {
-        Wireframe wf = mesh.wf();
-        float minY = Float.POSITIVE_INFINITY;
-        float maxY = Float.NEGATIVE_INFINITY;
-        for (Wireframe.Vertex v : wf.getVertices()) {
-            if (v.y < minY) {
-                minY = v.y;
-            }
-            if (v.y > maxY) {
-                maxY = v.y;
-            }
-        }
-        float h = (maxY > minY) ? (maxY - minY) : 1f;
-        if (h < 1f) {
-            h = 1f;
-        }
-        return h;
+    private static float computeHeight(ModelInstance inst) {
+        BoundingBox TMP_BB = new BoundingBox();
+        inst.calculateBoundingBox(TMP_BB);
+        TMP_BB.mul(inst.transform);
+        TMP_BB.getDimensions(TMP1);
+        return TMP1.y;
     }
 
 }

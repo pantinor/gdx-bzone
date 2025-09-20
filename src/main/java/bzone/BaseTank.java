@@ -29,7 +29,7 @@ public abstract class BaseTank {
     protected static final float FWD_START_DISTANCE_SUPER_TANK = 2048;
 
     protected GameModelInstance inst;
-    protected final GameModelInstance extra;
+    protected final GameModelInstance radar;
     protected final Projectile projectile;
 
     public final Vector3 pos = new Vector3();
@@ -44,9 +44,9 @@ public abstract class BaseTank {
     protected int reverseFlags;               // bit0: reversing, bit1: reverse turn dir (0=R,1=L)
     protected int turnTo;                     // target facing (0..255)
 
-    public BaseTank(GameModelInstance inst, GameModelInstance extra, Projectile projectile) {
+    public BaseTank(GameModelInstance inst, GameModelInstance radar, Projectile projectile) {
         this.inst = inst;
-        this.extra = extra;
+        this.radar = radar;
         this.projectile = projectile;
     }
 
@@ -81,13 +81,13 @@ public abstract class BaseTank {
             modelBatch.render(this.inst, environment);
         }
 
-        if (this.extra != null && !ctx.isSuperTank()) {
-            nearestWrappedPos(this.extra, cam.position.x, cam.position.z, TMP1);
+        if (this.radar != null && !ctx.isSuperTank()) {
+            nearestWrappedPos(this.radar, cam.position.x, cam.position.z, TMP1);
             if (cam.frustum.pointInFrustum(TMP1)) {
-                this.extra.transform.val[Matrix4.M03] = TMP1.x;
-                this.extra.transform.val[Matrix4.M13] = TMP1.y;
-                this.extra.transform.val[Matrix4.M23] = TMP1.z;
-                modelBatch.render(this.extra, environment);
+                this.radar.transform.val[Matrix4.M03] = TMP1.x;
+                this.radar.transform.val[Matrix4.M13] = TMP1.y;
+                this.radar.transform.val[Matrix4.M23] = TMP1.z;
+                modelBatch.render(this.radar, environment);
             }
         }
     }
@@ -117,9 +117,9 @@ public abstract class BaseTank {
                 .translate(wx, pos.y, wz)
                 .rotate(Vector3.Y, facing * 360f / ANGLE_STEPS);
 
-        if (this.extra != null) {
-            extra.transform.set(inst.transform)
-                    .translate(0, 640, -512)
+        if (this.radar != null) {
+            radar.transform.set(inst.transform)
+                    .translate(0, 800, -512)
                     .rotate(Vector3.Y, radarFacing * 360f / ANGLE_STEPS);
         }
     }

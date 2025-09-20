@@ -36,8 +36,8 @@ public class Skimmer extends BaseTank {
 
     public Skimmer(Projectile projectile) {
         super(null, null, projectile);
-        this.skimmer = Models.buildWireframeInstance(Models.Mesh.SKIMMER, Color.GREEN, 1);
-        this.stinger = Models.buildWireframeInstance(Models.Mesh.STINGER, Color.GREEN, 1);
+        this.skimmer = Models.getModelInstance(Models.Mesh.SKIMMER, Color.GREEN, 1);
+        this.stinger = Models.getModelInstance(Models.Mesh.STINGER, Color.GREEN, 1);
         this.facing = MathUtils.random(0, ANGLE_STEPS - 1);
         this.radarFacing = this.facing;
         this.turnTo = this.facing;
