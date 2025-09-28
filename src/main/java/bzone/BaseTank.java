@@ -36,7 +36,7 @@ public abstract class BaseTank {
     protected final Vector3 savedPos = new Vector3();
     private static final Vector3 TMP1 = new Vector3();
 
-    public boolean alive = true;
+    public boolean alive = false;
     public int facing;                     // 0..255
 
     protected int radarFacing;                // 0..255

@@ -79,6 +79,7 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
     private final GameContext context = new GameContext();
     private int nmiCount = 0;
 
+    private Tanks tanks;
     private BaseTank tank;
     private Missile missile;
     private Saucer saucer;
@@ -139,9 +140,6 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
         GameModelInstance flyerProj = Models.getModelInstance(Mesh.ROCKET, Color.BLUE, 1);
         flyerProjectile = new Projectile(flyerProj);
 
-        GameModelInstance tm = Models.getModelInstance(Mesh.SLOW_TANK, Color.GREEN, 1);
-        GameModelInstance stm = Models.getModelInstance(Mesh.SUPER_TANK, Color.GREEN, 1);
-        GameModelInstance rm = Models.getModelInstance(Mesh.RADAR, Color.GREEN, 1);
         GameModelInstance mm = Models.getModelInstance(Mesh.MISSILE, Color.GREEN, 1);
         GameModelInstance sm = Models.getModelInstance(Mesh.SAUCER, Color.GREEN, 1);
 
@@ -149,7 +147,10 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
         GameModelInstance logottle = Models.getModelInstance(Mesh.LOGO_TTLE, Color.GREEN, 20, true);
         GameModelInstance logozone = Models.getModelInstance(Mesh.LOGO_ZONE, Color.GREEN, 20, true);
 
-        this.tank = new Tank(tm, stm, rm, tankProjectile);
+        this.tanks = new Tanks(tankProjectile);
+        this.tank = this.tanks.nextTank(context);
+        this.tank.alive = true;
+
         this.flyer = new Skimmer(flyerProjectile);
         this.missile = new Missile(mm);
         this.saucer = new Saucer(sm);
@@ -164,6 +165,9 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
         context.saucer_ttl = MathUtils.random(12, 15) * 100;
 
         randomSpawn(cam.position, context);
+        context.playerX = cam.position.x;
+        context.playerZ = cam.position.z;
+
         randomSpawn(this.tank.pos, context);
 
         cam.position.y = PLAYER_Y;
@@ -672,8 +676,6 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
             context.playerScore += 1000;
             explosion.spawn(true, to16(tank.pos.x), to16(tank.pos.z));
             spatter.spawn(to16(x), to16(z));
-            randomSpawn(this.tank.pos, context);
-            tank.applyWrappedTransform(context);
             return true;
         }
         if (this.flyer.alive && touches(this.flyer.inst, x, z) && this.flyer.pos.y < 800) {
@@ -702,7 +704,17 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
     }
 
     private void tankSpawn() {
+
+        this.tank = this.tanks.nextTank(context);
+
+        randomSpawn(this.tank.pos, context);
+        tank.applyWrappedTransform(context);
+
         this.tank.alive = true;
+        this.tank.facing = MathUtils.random(0, 255);
+        this.tank.turnTo = tank.facing;
+        this.tank.moveCounter = 45;
+
         Sounds.play(Sounds.Effect.SPAWN);
 
         if (context.playerScore > 10000) {
@@ -808,7 +820,6 @@ public class BattleZone implements ApplicationListener, InputProcessor, Controll
             }
         }
 
-        Sounds.play(Sounds.Effect.OVERTURE);
         pos.set(wrap16f(ctx.playerX + 31000), WORLD_Y, wrap16f(ctx.playerZ));
     }
 

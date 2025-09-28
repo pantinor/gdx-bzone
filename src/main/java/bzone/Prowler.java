@@ -18,10 +18,6 @@ import com.badlogic.gdx.math.MathUtils;
  */
 public class Prowler extends BaseTank {
 
-    // Model
-    final GameModelInstance tankModel;
-
-    // Tunables (feel free to tweak until it “feels” right)
     private static final float PROWLER_SPEED_MULT = 1.35f;   // a touch faster than slow tank
     private static final float FORWARD_START_DIST = 1400f;   // starts moving forward a bit earlier
     private static final int STRAFE_90_STEPS = 64;      // 90° in 256-step circle
@@ -31,7 +27,6 @@ public class Prowler extends BaseTank {
     private static final int RAD_TARGET = 4800;    // desired orbit radius
     private static final int RAD_FAR = 9000;    // “too far” (encourage charge)
 
-    // Plan/state
     private enum Plan {
         ORBIT, CHARGE, BREAK, STRAFE, HOLD
     }
@@ -40,7 +35,6 @@ public class Prowler extends BaseTank {
 
     public Prowler(GameModelInstance tankModel, Projectile projectile) {
         super(tankModel, null, projectile);
-        this.tankModel = tankModel;
         this.facing = MathUtils.random(0, ANGLE_STEPS - 1);
         this.radarFacing = this.facing;
         this.turnTo = this.facing;
@@ -49,8 +43,6 @@ public class Prowler extends BaseTank {
 
     @Override
     protected void updateTank(GameContext ctx, float dt) {
-
-        this.inst = this.tankModel;
 
         if (this.moveCounter > 0) {
             this.moveCounter--;

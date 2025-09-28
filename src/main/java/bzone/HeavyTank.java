@@ -17,10 +17,6 @@ import com.badlogic.gdx.math.MathUtils;
  */
 public class HeavyTank extends BaseTank {
 
-    // Model
-    final GameModelInstance tankModel;
-
-    // Tuning
     private static final float HEAVY_SPEED_MULT = 0.85f;   // slower than default tank
     private static final float FWD_START_DISTANCE_FAR = 4096f;   // only advance when far
     private static final float FWD_START_DISTANCE_NEAR = 2048f;   // or when nearly aligned
@@ -31,7 +27,6 @@ public class HeavyTank extends BaseTank {
     private static final int AIM_WINDOW_MIN = 20;      // frames
     private static final int AIM_WINDOW_MAX = 44;      // frames
 
-    // Behaviour state
     private enum Plan {
         AIM, APPROACH, ADJUST, STRAFE, RETREAT
     }
@@ -42,7 +37,6 @@ public class HeavyTank extends BaseTank {
 
     public HeavyTank(GameModelInstance tankModel, Projectile projectile) {
         super(tankModel, null, projectile);
-        this.tankModel = tankModel;
         this.facing = MathUtils.random(0, ANGLE_STEPS - 1);
         this.radarFacing = this.facing;
         this.turnTo = this.facing;
@@ -51,9 +45,6 @@ public class HeavyTank extends BaseTank {
 
     @Override
     protected void updateTank(GameContext ctx, float dt) {
-
-        // Use heavy tank model
-        this.inst = this.tankModel;
 
         if (this.moveCounter > 0) {
             this.moveCounter--;

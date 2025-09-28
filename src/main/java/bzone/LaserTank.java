@@ -24,10 +24,6 @@ import com.badlogic.gdx.math.MathUtils;
  */
 public class LaserTank extends BaseTank {
 
-    // Model
-    final GameModelInstance laserTank;
-
-    // Tunables (feel free to tweak)
     private static final float LASER_SPEED_MULT = 1.25f;  // a bit nimbler than slow tank
     private static final float FWD_START_DISTANCE_LASER_TANK = 1536f;  // start pushing forward sooner
     private static final int WOBBLE_MAX_OFFSET_STEPS = 31;     // up to ~43.7°
@@ -35,8 +31,6 @@ public class LaserTank extends BaseTank {
 
     public LaserTank(GameModelInstance laserTank, Projectile projectile) {
         super(laserTank, null, projectile);
-        this.laserTank = laserTank;
-        // desync instances a bit so they don't behave identically
         this.facing = MathUtils.random(0, ANGLE_STEPS - 1);
         this.radarFacing = this.facing;
         this.moveCounter = NEW_HEADING_FRAMES + (int) (MathUtils.random(0, 7));
@@ -44,9 +38,6 @@ public class LaserTank extends BaseTank {
 
     @Override
     protected void updateTank(GameContext ctx, float dt) {
-
-        // Always use the laser-tank model
-        this.inst = this.laserTank;
 
         if (this.moveCounter > 0) {
             this.moveCounter--;

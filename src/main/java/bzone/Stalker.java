@@ -24,16 +24,11 @@ import com.badlogic.gdx.math.MathUtils;
  */
 public class Stalker extends BaseTank {
 
-    // Model
-    final GameModelInstance stalkerModel;
-
-    // Cloak state
     private boolean cloaked = true;
     private int cloakTimer = 50;           // Start cloaked like the ROM path that sets 50
     private static final int CLOAK_ON_FR = 50;   // frames cloaked
     private static final int CLOAK_OFF_FR = 100;  // frames visible
 
-    // Movement tuning
     private static final float SPEED_MULT_CLOAKED = 1.5f;  // push harder when cloaked
     private static final float SPEED_MULT_VISIBLE = 1.2f;  // a bit quicker than slow tank
     private static final int STRAFE_90_STEPS = 64;     // 90°
@@ -51,7 +46,6 @@ public class Stalker extends BaseTank {
 
     public Stalker(GameModelInstance stalkerModel, Projectile projectile) {
         super(stalkerModel, null, projectile);
-        this.stalkerModel = stalkerModel;
         this.facing = MathUtils.random(0, ANGLE_STEPS - 1);
         this.radarFacing = this.facing;
         this.turnTo = this.facing;
@@ -60,7 +54,6 @@ public class Stalker extends BaseTank {
 
     @Override
     protected void updateTank(GameContext ctx, float dt) {
-        this.inst = this.stalkerModel;
 
         if (this.moveCounter > 0) {
             this.moveCounter--;

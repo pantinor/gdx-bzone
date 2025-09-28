@@ -38,6 +38,7 @@ public class Skimmer extends BaseTank {
         super(null, null, projectile);
         this.skimmer = Models.getModelInstance(Models.Mesh.SKIMMER, Color.GREEN, 1);
         this.stinger = Models.getModelInstance(Models.Mesh.STINGER, Color.GREEN, 1);
+        this.inst = this.skimmer;
         this.facing = MathUtils.random(0, ANGLE_STEPS - 1);
         this.radarFacing = this.facing;
         this.turnTo = this.facing;
@@ -117,7 +118,6 @@ public class Skimmer extends BaseTank {
     private void choosePlan(GameContext ctx, float dist, int angToPlayer) {
 
         //System.out.printf("dist=%5.0f plan=%-6s alt=%4.0f angToPlayer=%d mc=%d%n", dist, plan, alt, angToPlayer, moveCounter);
-
         //slightly vary replan timing by 0–3 frames
         final int JIT = (int) (ctx.nmiCount & 0x03L);// 0,1,2,3 repeating each frame
 

@@ -188,7 +188,6 @@ public class TankExplosion {
         boolean allGrounded = true;
 
         for (Piece p : pieces) {
-            float half = p.size * 0.5f;
 
             if (!p.grounded) {
 
@@ -199,10 +198,8 @@ public class TankExplosion {
 
                 p.pos.mulAdd(p.vel, dt);
 
-                // Ground contact with tolerance
-                if (p.pos.y - half <= GROUND_Y + GROUND_EPS) {
-                    // Clamp to ground plane
-                    p.pos.y = GROUND_Y + half;
+                if (p.pos.y <= GROUND_Y + GROUND_EPS) {
+                    p.pos.y = GROUND_Y;
 
                     // Bounce only if coming down
                     if (p.vel.y < 0f) {
@@ -223,9 +220,8 @@ public class TankExplosion {
                     }
                 }
 
-                // Extra safety: if we're essentially on the ground and barely moving, sleep it
-                if (!p.grounded && (p.pos.y - half) <= GROUND_EPS && p.vel.len2() < SLEEP_VEL_EPS * SLEEP_VEL_EPS) {
-                    p.pos.y = GROUND_Y + half;
+                if (!p.grounded && p.pos.y <= GROUND_Y + GROUND_EPS && p.vel.len2() < SLEEP_VEL_EPS * SLEEP_VEL_EPS) {
+                    p.pos.y = GROUND_Y;
                     p.vel.setZero();
                     p.spinDeg = 0f;
                     p.grounded = true;
